@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=
+
+
+person:
+  name:
+  sex:
+  addr:
+  depts:
+  - name:
+    master:
+
+  -
+
+  

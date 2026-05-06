@@ -1,0 +1,69 @@
+﻿{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "sessions": {
+      "type": "array",
+      "description": "会话集合",
+      "items": {
+        "type": "object",
+        "description": "会话条目",
+        "items": { "$ref": "#/definitions/SessionItem" }
+      }
+    },
+    "session": {
+      "type": "object",
+      "description": "会话",
+      "items": { "$ref": "#/definitions/Session" }
+    }
+  },
+  "required": [],
+  "definitions": {
+    "SessionItem": {
+      "type": "object",
+      "properties": {
+        "Id": {
+          "type": "number",
+          "description": "会话详细信息条目编号"
+        },
+        "Description": {
+          "type": "string",
+          "description": "会话详细信息条目的详细内容"
+        },
+        "SessionType": {
+          "type": "string",
+          "description": "会话详细信息条目的所属类型，只能是Prompt,Assistant,User,FunctionCall其中一个值",
+          "enum": [ "Prompt", "Assistant", "User", "FunctionCall" ]
+        },
+        "State": {
+          "type": "string",
+          "enum": [ "None", "Added", "Modified", "Deleted", "Attached", "Detached" ]
+        }
+      },
+      "required": [ "Id", "Description", "SessionType" ]
+    },
+    "Session": {
+      "type": "object",
+      "properties": {
+        "Id": {
+          "type": "number",
+          "description": "会话编号，代表唯一的会话"
+        },
+        "Description": {
+          "type": "string",
+          "description": "会话内容"
+        },
+        "ParentId": {
+          "type": "number",
+          "description": "上级会话"
+        },
+        "State": {
+          "type": "string",
+          "enum": [ "None", "Added", "Modified", "Deleted", "Attached", "Detached" ]
+        }
+      },
+      "required": []
+    }
+  }
+}

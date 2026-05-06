@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="ABL.Store/ABL.Store.csproj" Id="d5cc5760-c225-4a17-9691-5854ec42b034">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="ABL/ABL.csproj" Id="2313837f-a027-4253-8103-ce6e78c5d8e3">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="ACL/ACL.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+</Solution>

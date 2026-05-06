@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration>
+	<!--大语言模型LLM配置，可以配置多个，只有1个是默认的-->
+	<llm-config name="llm" type="ACL.business.llm.LLMAnt,ACL">
+		<llmCollection>
+			<llm
+				name="supergemma4-26b-uncensored-fast-v2-Q4_K_M"
+				accessUrl="http://localhost:18088/v1"
+				apiKey ="llama"
+				default="1"
+				version="gemma4"
+				description="这个是破解版的gemma4-26b量化版本"
+				></llm>
+		</llmCollection>
+	</llm-config>
+
+	<!--提示词设置，用来初始化-->
+	<promptAnt name="prompt" type="ACL.business.prompt.PromptAnt,ACL">
+		<prompts>
+			<prompt usage="Plan" type="System" path="prompt/plan.txt"></prompt>
+			<prompt usage="Code" type="System" path="prompt/coding-3.txt"></prompt>
+		</prompts>
+	</promptAnt>
+	
+	<!--配置STDIO-MCP工具服务提供者，后续要全部替换掉成为LOCAL的，这些外部的有性能问题-->
+	<stdio-mcp-config name="stdio-mcp" type="ACL.business.mcp.dialect.StdioMcpAnt,ACL">
+		<stdio-mcp-collection>
+			<!--<stdio-mcp name="everything" command="npx">
+				<args>
+					<arg name="-y"></arg>
+					<arg name="@modelcontextprotocol/server-everything"></arg>
+				</args>
+				<passed-tools>
+					<tool name="everything-simulate-research-query"></tool>
+				</passed-tools>
+			</stdio-mcp>
+			<stdio-mcp name="filesystem" command="npx">
+				<args>
+					<arg name="-y"></arg>
+					<arg name="@modelcontextprotocol/server-filesystem"></arg>
+					<arg name="j:/"></arg>
+				</args>
+				<passed-tools>
+					<tool name="list_allowed_directories"></tool>
+					<tool name="list_directory"></tool>
+				</passed-tools>
+			</stdio-mcp>
+			<stdio-mcp name="fetch" command="uvx">
+				<args>
+					<arg name="mcp-server-fetch"></arg>
+				</args>
+			</stdio-mcp>-->
+		</stdio-mcp-collection>
+	</stdio-mcp-config>
+	
+	<!--默认项目设置，定义项目位置-->
+	<project name="project-config" type="ACL.business.project.ProjectAnt,ACL">
+		<projectCollection>
+			<project name="" directory="" description=""></project>
+		</projectCollection>
+	</project>
+
+	<!--数据库驱动设置-->
+	<database-ant name="databaseDriver" type="ABL.Data.DbDriverConfigAnt,ABL">
+		<databaseCollection>
+			<database name="default" 
+					  provider="ACL.dao.SQLiteDbDriver,ACL" 
+					  connectionString="Data Source=./acl.db;Mode=ReadWrite;Foreign Keys=True;Default Timeout=20;"></database>
+		</databaseCollection>
+	</database-ant>
+
+</configuration>

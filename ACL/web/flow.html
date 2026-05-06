@@ -1,0 +1,144 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>流程</title>
+    <link rel="stylesheet" type="text/css" href="http://local.res/web/mxgraph/styles/grapheditor.css">
+    <script type="text/javascript">
+        RESOURCE_BASE = "";
+        STYLE_PATH = "";
+        var mxBasePath = 'http://local.res/web/mxgraph';
+        var mxLoadResources = true;
+        var mxResourceExtension = '.txt';
+        var mxLanguage = 'zh';
+        // Parses URL parameters. Supported parameters are:
+        // - lang=xy: Specifies the language of the user interface.
+        // - touch=1: Enables a touch-style user interface.
+        // - storage=local: Enables HTML5 local storage.
+        // - chrome=0: Chromeless mode.
+        var urlParams = (function (url) {
+            var result = new Object();
+            var idx = url.lastIndexOf('?');
+
+            if (idx > 0) {
+                var params = url.substring(idx + 1).split('&');
+
+                for (var i = 0; i < params.length; i++) {
+                    idx = params[i].indexOf('=');
+
+                    if (idx > 0) {
+                        result[params[i].substring(0, idx)] = params[i].substring(idx + 1);
+                    }
+                }
+            }
+
+            return result;
+        })(window.location.href);
+
+        // Default resources are included in grapheditor resources
+        mxLoadResources = false;
+    </script>
+    <script src="http://local.res/web/mxgraph/js/Init.js"></script>
+    <script src="http://local.res/web/mxgraph/deflate/base64.js"></script>
+    <script src="http://local.res/web/mxgraph/deflate/pako.min.js"></script>
+    <script src="http://local.res/web/mxgraph/jscolor/jscolor.js"></script>
+    <script src="http://local.res/web/mxgraph/sanitizer/sanitizer.min.js"></script>
+    <script src="http://local.res/web/mxgraph/js/mxClient.js"></script>
+    <style type="text/css">
+        * {
+            font-size: 12px;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        .master {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tool {
+            display: flex;
+            flex: 4;
+            height: 20px;
+            width: 100%;
+            flex-flow: row-reverse;
+            padding-top:10px;
+            border-bottom: solid 1px gray;
+        }
+
+        .container {
+            display: flex;
+            flex: 100;
+            flex-direction: row;
+        }
+
+        .model {
+            display: flex;
+            border-right: solid 1px #e2e0e0;
+            height: 100%;
+            flex: 1;
+            flex-direction: column;
+        }
+
+        .model-item {
+            margin: 3px 5px 3px 5px;
+            text-align: center;
+            height: 40px;
+            line-height: 40px;
+            font-weight: bold;
+            clear: both;
+            border: 1px solid #d3d3d3;
+            background-color: #fbfbfb;
+            cursor: pointer;
+            display: flex;
+            flex-flow: column-reverse;
+        }
+
+        .main {
+            display: flex;
+            height: 100%;
+            flex: 10
+        }
+
+        a {
+            color: black;
+            background-color: lightgray;
+            height: 20px;
+            line-height: 20px;
+            padding: 0 10px 0 10px;
+            text-decoration:none;
+            border: 1px solid gray;
+            margin-right:10px;
+        }
+
+            a:hover {
+                color: red;
+            }
+
+            a:link {
+                color: black;
+            }
+    </style>
+</head>
+<body onload="onInit()">
+    <input type="hidden" id="flowId" value="${flowId}" />
+    <div class="master">
+        <div class="tool" id="tools">
+            <a href="javascript:return false;" onclick="save(); return false;">保存</a>
+            <a href="javascript:return false;" onclick="connect(); return false;">连接</a>
+            <a href="javascript:return false;" onclick="removeGrap(); return false;">删除</a>
+        </div>
+        <div class="container">
+            <div class="model" id="models"></div>
+            <div class="main" id="c"></div>
+        </div>
+    </div>
+    <script src="http://local.res/web/mxgraph/js/client.js"></script>
+</body>
+</html>
