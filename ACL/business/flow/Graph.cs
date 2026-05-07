@@ -61,8 +61,19 @@
 
         public List<Edge<T>> Edges { get; set; } = new List<Edge<T>>();
 
+        /// <summary>
+        /// 从本节点出发的边
+        /// </summary>
+        public List<Edge<T>> FromEdges => Edges.Where(x => x.From == this).ToList();
 
-
+        /// <summary>
+        /// 指向本节点的边
+        /// </summary>
+        public List<Edge<T>> ToEdges => Edges.Where(x => x.To == this).ToList();
+        /// <summary>
+        /// 指向的顶点
+        /// </summary>
+        public List<Node<T>> ToNodes => FromEdges.Where(x => x.To != null).Select(x => x.To).ToList();
         public bool IsTerminal
         {
             get { return Edges.Count == 0; }
@@ -77,5 +88,8 @@
         public Node<T>? From { get; set; }
 
         public Node<T>? To { get; set; }
+
+        public bool FromVisited { get; set; }
+        public bool ToVisited { get; set; }
     }
 }

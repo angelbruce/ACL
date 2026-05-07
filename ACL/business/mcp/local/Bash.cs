@@ -17,10 +17,10 @@ namespace ACL.business.mcp.local
         /// <param name="workDir">The directory to execute the command in (use "" for current directory).</param>
         /// <param name="timeoutMs">Optional timeout in milliseconds.</param>
         /// <returns>The standard output of the command as a string.</returns>
-        [McpTool, Description("Executes a system command and returns the output. \n`command`: the command to execute . \n `workDir`: working directory. \n required `command`.")]
+        [McpTool, Description("Executes a system command and returns the output.")]
         public static string ExecuteCommand(
-         [Required][Description("command: the command to execute")] string command,
-         [Required][Description("workDir: working directory")] string workDir
+         [Required][Description("the command to execute")] string command,
+         [Required][Description("working directory")] string workDir
             )
         {
 

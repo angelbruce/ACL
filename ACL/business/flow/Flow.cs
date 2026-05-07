@@ -11,17 +11,15 @@ namespace ACL.business.flow
 
         private DataStore datastore;
         private FlowBody flow;
-        private Dictionary<long, IAgent> agentMap;
 
         public Flow(FlowBody flow)
         {
             this.flow = flow;
             datastore = new DataStore();
-            agentMap = new Dictionary<long, IAgent>();
         }
 
 
-        public Graph<AgentTask> Initialize()
+        public Graph<AgentTask> Configure()
         {
             var actions = CreateActions();
             var agents = CreateAgentTask(actions);
@@ -43,7 +41,7 @@ namespace ACL.business.flow
         /// <returns></returns>
         /// <exception cref="FlowDanglingException"></exception>
         /// <exception cref="InvalidFlowException"></exception>
-        internal Graph<AgentTask> CreateAgentTask(Graph<Action> actionGraph)
+        private Graph<AgentTask> CreateAgentTask(Graph<Action> actionGraph)
         {
             var graph = new Graph<AgentTask>();
             var map = new Dictionary<string, Node<AgentTask>>();
@@ -64,21 +62,16 @@ namespace ACL.business.flow
                 var task = new AgentTask(agentInfo);
 
                 //get agent from agent map if exists or create a new agent from agent body
-                IAgent? agent = null;
+                Agent? agent = null;
                 var agentId = action?.Data?.AgentInfo?.Id;
                 if (agentId == null) throw new InvalidFlowException();
 
-                if (agentMap.ContainsKey(agentId.Value))
-                {
-                    agent = agentMap[agentId.Value];
-                }
-                else
-                {
-                    var agentBody = datastore.GetAgent(agentId.Value);
-                    if (agentBody == null) throw new InvalidFlowException();
+           
+                var agentBody = datastore.GetAgent(agentId.Value);
+                if (agentBody == null) throw new InvalidFlowException();
 
-                    agent = new Agent(agentBody);
-                }
+                task.Body = agentBody;
+                agent = new Agent(task);
 
                 //construct the graph node from task data info.
                 task.Agent = agent;

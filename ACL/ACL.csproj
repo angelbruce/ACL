@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="prompt\agent\output.txt" />
     <Content Include="prompt\agent\quality.txt" />
     <Content Include="web\flow.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

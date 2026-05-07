@@ -12,8 +12,12 @@ namespace ACL.business.agent
         public void OnMcpToolsChanged();
         public void OnCurrentSessionChanged(SessionChangedEventArgs e);
         public Task RunOrchestrator();
+        /// <summary>
+        /// provide the agent service which the text will be write throught the output channel
+        /// </summary>
+        /// <param name="channel">the output channel</param>
+        /// <returns></returns>
         public Task Serve(Channel<string> channel);
-        public Task SetOutput(Channel<string> channel);
         public Task<bool> Chat(string data);
         public void Cancel();
     }

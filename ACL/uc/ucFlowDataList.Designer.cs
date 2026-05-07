@@ -30,14 +30,16 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ucFlowDataList));
             panel1 = new Panel();
+            btnDeleteAgent = new Button();
+            button2 = new Button();
+            btnAddAgent = new Button();
             button1 = new Button();
             panel2 = new Panel();
             dgvFlow = new DataGridView();
             Column1 = new DataGridViewTextBoxColumn();
             Column2 = new DataGridViewTextBoxColumn();
-            btnDeleteAgent = new Button();
-            button2 = new Button();
-            btnAddAgent = new Button();
+            button3 = new Button();
+            button4 = new Button();
             panel1.SuspendLayout();
             panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvFlow).BeginInit();
@@ -45,6 +47,8 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(button4);
+            panel1.Controls.Add(button3);
             panel1.Controls.Add(btnDeleteAgent);
             panel1.Controls.Add(button2);
             panel1.Controls.Add(btnAddAgent);
@@ -55,10 +59,49 @@
             panel1.Size = new Size(555, 46);
             panel1.TabIndex = 0;
             // 
+            // btnDeleteAgent
+            // 
+            btnDeleteAgent.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            btnDeleteAgent.FlatAppearance.BorderSize = 0;
+            btnDeleteAgent.FlatStyle = FlatStyle.Flat;
+            btnDeleteAgent.Image = (Image)resources.GetObject("btnDeleteAgent.Image");
+            btnDeleteAgent.Location = new Point(54, 7);
+            btnDeleteAgent.Name = "btnDeleteAgent";
+            btnDeleteAgent.Size = new Size(20, 32);
+            btnDeleteAgent.TabIndex = 4;
+            btnDeleteAgent.UseVisualStyleBackColor = true;
+            btnDeleteAgent.Click += btnDelete_Click;
+            // 
+            // button2
+            // 
+            button2.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            button2.FlatAppearance.BorderSize = 0;
+            button2.FlatStyle = FlatStyle.Flat;
+            button2.Image = (Image)resources.GetObject("button2.Image");
+            button2.Location = new Point(28, 7);
+            button2.Name = "button2";
+            button2.Size = new Size(20, 32);
+            button2.TabIndex = 5;
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += btnEdit_Click;
+            // 
+            // btnAddAgent
+            // 
+            btnAddAgent.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            btnAddAgent.FlatAppearance.BorderSize = 0;
+            btnAddAgent.FlatStyle = FlatStyle.Flat;
+            btnAddAgent.Image = (Image)resources.GetObject("btnAddAgent.Image");
+            btnAddAgent.Location = new Point(3, 7);
+            btnAddAgent.Name = "btnAddAgent";
+            btnAddAgent.Size = new Size(20, 32);
+            btnAddAgent.TabIndex = 6;
+            btnAddAgent.UseVisualStyleBackColor = true;
+            btnAddAgent.Click += btnAdd_Click;
+            // 
             // button1
             // 
             button1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            button1.Location = new Point(174, 7);
+            button1.Location = new Point(483, 13);
             button1.Name = "button1";
             button1.Size = new Size(48, 33);
             button1.TabIndex = 3;
@@ -112,44 +155,31 @@
             Column2.Name = "Column2";
             Column2.ReadOnly = true;
             // 
-            // btnDeleteAgent
+            // button3
             // 
-            btnDeleteAgent.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            btnDeleteAgent.FlatAppearance.BorderSize = 0;
-            btnDeleteAgent.FlatStyle = FlatStyle.Flat;
-            btnDeleteAgent.Image = (Image)resources.GetObject("btnDeleteAgent.Image");
-            btnDeleteAgent.Location = new Point(108, 7);
-            btnDeleteAgent.Name = "btnDeleteAgent";
-            btnDeleteAgent.Size = new Size(46, 32);
-            btnDeleteAgent.TabIndex = 4;
-            btnDeleteAgent.UseVisualStyleBackColor = true;
-            btnDeleteAgent.Click += btnDelete_Click;
+            button3.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            button3.FlatAppearance.BorderSize = 0;
+            button3.FlatStyle = FlatStyle.Flat;
+            button3.Image = (Image)resources.GetObject("button3.Image");
+            button3.Location = new Point(104, 9);
+            button3.Name = "button3";
+            button3.Size = new Size(20, 32);
+            button3.TabIndex = 4;
+            button3.UseVisualStyleBackColor = true;
+            button3.Click += OnStart;
             // 
-            // button2
+            // button4
             // 
-            button2.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            button2.FlatAppearance.BorderSize = 0;
-            button2.FlatStyle = FlatStyle.Flat;
-            button2.Image = (Image)resources.GetObject("button2.Image");
-            button2.Location = new Point(55, 7);
-            button2.Name = "button2";
-            button2.Size = new Size(46, 32);
-            button2.TabIndex = 5;
-            button2.UseVisualStyleBackColor = true;
-            button2.Click += btnEdit_Click;
-            // 
-            // btnAddAgent
-            // 
-            btnAddAgent.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
-            btnAddAgent.FlatAppearance.BorderSize = 0;
-            btnAddAgent.FlatStyle = FlatStyle.Flat;
-            btnAddAgent.Image = (Image)resources.GetObject("btnAddAgent.Image");
-            btnAddAgent.Location = new Point(3, 7);
-            btnAddAgent.Name = "btnAddAgent";
-            btnAddAgent.Size = new Size(46, 32);
-            btnAddAgent.TabIndex = 6;
-            btnAddAgent.UseVisualStyleBackColor = true;
-            btnAddAgent.Click += btnAdd_Click;
+            button4.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            button4.FlatAppearance.BorderSize = 0;
+            button4.FlatStyle = FlatStyle.Flat;
+            button4.Image = (Image)resources.GetObject("button4.Image");
+            button4.Location = new Point(130, 9);
+            button4.Name = "button4";
+            button4.Size = new Size(20, 32);
+            button4.TabIndex = 4;
+            button4.UseVisualStyleBackColor = true;
+            button4.Click += OnStop;
             // 
             // ucFlowDataList
             // 
@@ -176,5 +206,7 @@
         private Button btnDeleteAgent;
         private Button button2;
         private Button btnAddAgent;
+        private Button button3;
+        private Button button4;
     }
 }

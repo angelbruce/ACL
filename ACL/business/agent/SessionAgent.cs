@@ -300,7 +300,8 @@ namespace ACL.flow
                                 messages.Add(new AssistantChatMessage(new List<ChatToolCall> { ChatToolCall.CreateFunctionToolCall(fnName, fnName, parameters) }));
                                 messages.Add(new ToolChatMessage(fnName, $"工具{fnName}正在调用中，稍后会给你最终调用结果，你先继续。"));
 
-                                new Thread(async () => {
+                                new Thread(async () =>
+                                {
                                     await Task.Run(async () =>
                                     {
                                         var toolResult = await Context.Instance.CallToolAsync(fnName, parameters);
@@ -314,7 +315,7 @@ namespace ACL.flow
                                     });
                                 }).Start();
 
-                          
+
 
 
                                 continue;
@@ -331,7 +332,7 @@ namespace ACL.flow
                     }
                     catch (Exception e)
                     {
-                        if(e.Message .StartsWith("Service request failed.\\r\\nStatus: 400 (Bad Request)"))
+                        if (e.Message.StartsWith("Service request failed.\\r\\nStatus: 400 (Bad Request)"))
                         {
                             var modelInfo = Context.Instance.CurrentModel;
                             var model = modelInfo.Name;
@@ -433,10 +434,11 @@ namespace ACL.flow
                 messages.Add(new SystemChatMessage(systemPrompt));
             }
 
+            messages.Add(new SystemChatMessage("你可以通过阅读项目下的文件了解本项目的相关信息。"));
+            
             if (session != null)
             {
                 messages.Add(new UserChatMessage(session.Description));
-                messages.Add(new UserChatMessage("你可以通过阅读项目下的文件了解本项目的相关信息。"));
             }
 
             if (items != null && items.Count > 0)

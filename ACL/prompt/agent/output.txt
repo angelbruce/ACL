@@ -1,0 +1,18 @@
+﻿#### 必须输出的额内容约定 
+*   **你必须每次输出计划任务以及完成的计划，以及下一步要做的计划编号**。
+*   **你必须严格按照YAML格式进行输出，此处输出不能包含语法错误，语法必须正确**。
+*   你此处的内容必须**严格遵守**，保持缩进。
+
+```yaml
+Id:   <当前任务的唯一ID>
+CurrentStepDescription:   <正在实现的模块或功能描述>
+SubTaskList:    
+  - Id:   任务唯一编号
+    Status:  RUNNING | FINISHED
+    NeedHumanJoinStrategy:  <是否需要人类参与只能是 ture | false>
+    Description:   具体执行的动作描述 (e.g., Call API X with parameter Y)
+    InputData:   <用于本次动作的输入数据>
+    VerificationStatus:   PASSED | FAILED
+    ReflectionNotes:   <如果失败，在这里说明失败的原因和修正方向；如果成功，说明完成了什么，并明确它已满足了任务目标。>
+NextActionPlan:   基于本次结果，下一步计划的简短描述（必须自动推进到下一个任务<T1>）
+```

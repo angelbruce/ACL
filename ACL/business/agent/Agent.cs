@@ -1,12 +1,15 @@
 ﻿using ABL.Object;
 using ACL.business;
 using ACL.business.agent;
+using ACL.business.content;
+using ACL.business.flow;
 using ACL.business.llm;
 using ACL.business.log;
 using ACL.business.mcp;
 using ACL.business.project;
 using ACL.business.prompt;
 using ACL.dao;
+using NUnit.Framework;
 using OpenAI.Chat;
 using OpenAI.Responses;
 using System.ClientModel;
@@ -16,30 +19,31 @@ using System.Threading.Channels;
 
 namespace ACL.flow
 {
-    public class Agent : IAgent
+    
+    class Agent : IAgent
     {
-        private Channel<string> channel = Channel.CreateBounded<string>(10);
-        private Channel<string> output = null;
         private CancellationTokenSource chatCts = new CancellationTokenSource(10);
+        private Channel<string> channel = Channel.CreateBounded<string>(10);
+        private Channel<string>? output = null;
         private ChatClient? chatClient = null;
         private ChatCompletionOptions chatOptions;
         private List<ChatMessage> messages;
-        private RelexJSON relexJson;
         private AgentBody agent;
+        private AgentTask agentTask;
 
-        public Agent(AgentBody agent)
+        public Agent(AgentTask agentTask)
         {
-            this.agent = agent;
-            relexJson = new RelexJSON();
+            this.agentTask = agentTask;
+            var body = agentTask.Body;
+            if (body == null) throw new InvalidFlowException();
+            agent = body;
 
             Context.Instance.CurrentLlmModelInfoChagned += OnCurrentLlmModelInfoChagned;
             Context.Instance.AgentRefreshed += OnAgentInfoRefreshed;
-            Context.Instance.CurrentSessionChagned += OnCurrentSessionChanged;
 
             OnCurrentLlmModelInfoChagned(new CurrentLlmModelInfoChangedEventArgs { Current = Context.Instance.CurrentModel });
             OnPromptChanged();
             OnMcpToolsChanged();
-            OnCurrentSessionChanged(null);
         }
 
 
@@ -47,7 +51,6 @@ namespace ACL.flow
         {
             Context.Instance.CurrentLlmModelInfoChagned -= OnCurrentLlmModelInfoChagned;
             Context.Instance.AgentRefreshed -= OnAgentInfoRefreshed;
-            Context.Instance.CurrentSessionChagned -= OnCurrentSessionChanged;
 
             channel = null;
             output = null;
@@ -135,6 +138,68 @@ namespace ACL.flow
             return Task.FromResult(channel.Writer.TryWrite(data));
         }
 
+        private async Task<bool> ParseTasks(StringBuilder cacheTask)
+        {
+            var contentReslover = new ContentReslover(agent?.ContentStores);
+            messages.Add(new AssistantChatMessage(cacheTask.ToString()));
+            var tasks = contentReslover.Perform(cacheTask.ToString());
+            cacheTask.Clear();
+
+            if (tasks != null && tasks.Count > 0)
+            {
+                foreach (var task in tasks)
+                {
+                    if (task != null)
+                    {
+                        agentTask.RefreshTask(task);
+                        var needHumanToJoin = false;
+                        if (!string.IsNullOrEmpty(task.NextActionPlan))
+                        {
+                            var taskId = task.Id;
+                            if (task.SubTaskList != null)
+                            {
+                                foreach (var subTask in task.SubTaskList)
+                                {
+                                    if (subTask.NeedHumanJoinStrategy)
+                                    {
+                                        needHumanToJoin = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (needHumanToJoin)
+                            {
+                                if (output != null)
+                                {
+                                    await output.Writer.WriteAsync("请您参与，等待您的决策!\n");
+                                    return true;
+                                }
+                            }
+                            else
+                            {
+                                var test = string.Empty;
+
+                                if (channel != null)
+                                {
+                                    if (channel.Reader.CanPeek)
+                                    {
+                                        await Task.Run(async () =>
+                                        {
+                                            channel?.Writer.WriteAsync(task.NextActionPlan);
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+
         public async Task RunOrchestrator()
         {
             // 获取工具列表
@@ -150,21 +215,18 @@ namespace ACL.flow
             //开始会话
             while (true)
             {
-                var task = ParseTask(cacheTask);
-                if (task != null)
-                {
-                    Context.Instance.RefreshTask(task);
-                    if (!string.IsNullOrEmpty(task.NextActionPlan))
-                    {
-                        await Task.Run(async () =>
-                        {
-                            channel?.Writer.WriteAsync(task.NextActionPlan);
-                        });
-                    }
-                }
+                await ParseTasks(cacheTask);
 
-                var userInput = await channel.Reader.ReadAsync();
-                GlobalLogger.Debug($"Received question: {userInput}");
+                string userInput = string.Empty;
+                if (channel != null)
+                {
+                    userInput = await channel.Reader.ReadAsync();
+                    GlobalLogger.Debug($"Received question: {userInput}");
+                }
+                else
+                {
+                    return;
+                }
 
                 // 维护对话历史
                 messages.Add(new UserChatMessage(userInput));
@@ -225,7 +287,6 @@ namespace ACL.flow
                                 GlobalLogger.Debug($"[Tool Result] {toolResult.Content}");
                                 if (toolResult.Success)
                                 {
-                                    //messages.Add(new SystemChatMessage($"Tool {fnName} returned: {toolResult.Content}"));
                                     messages.Add(new ToolChatMessage(fnName, $"{toolResult.Content}"));
                                     messages.Add(new UserChatMessage("请检查一下这个工具的输出结果是否存在问题，若存在，请调整调用工具或参数，重新调用获取结果，如果不存在，请按照此次函数调用结果返回所需输出。"));
                                 }
@@ -243,6 +304,14 @@ namespace ACL.flow
                     }
                     catch (Exception e)
                     {
+                        if (e.Message.StartsWith("Service request failed.\\r\\nStatus: 400 (Bad Request)"))
+                        {
+                            var modelInfo = Context.Instance.CurrentModel;
+                            var model = modelInfo.Name;
+                            var options = new OpenAI.OpenAIClientOptions() { Endpoint = new Uri(modelInfo.AccessUrl) };
+                            chatClient = new ChatClient(model, new ApiKeyCredential(modelInfo.ApiKey), options);
+                        }
+
                         GlobalLogger.Error(e.Message);
                     }
                 }
@@ -339,6 +408,7 @@ namespace ACL.flow
                 messages.Add(new SystemChatMessage(systemPrompt));
             }
 
+            messages.Add(new SystemChatMessage("你可以通过阅读项目下的文件了解本项目的相关信息。"));
             if (session != null)
             {
                 messages.Add(new UserChatMessage(session.Description));
@@ -370,33 +440,6 @@ namespace ACL.flow
             }
         }
 
-
-        private TaskInfo? ParseTask(StringBuilder cacheTask)
-        {
-            try
-            {
-                var cacheLen = cacheTask.Length;
-                if (cacheLen > 0)
-                {
-                    var str = cacheTask.ToString().TrimEnd();
-                    var len = str.Length;
-                    if (str[0] == '`' && str[1] == '`' && str[2] == '`' && str[3] == 'j' && str[4] == 's' && str[5] == 'o' && str[6] == 'n'
-                        && str[len - 1] == '`' && str[len - 2] == '`' && str[len - 3] == '`'
-                        )
-                    {
-                        var json = str.Substring(7, len - 10);
-                        var tasks = relexJson.Deserealize<TaskInfo>(json);
-                        if (tasks != null && tasks.Count > 0) return tasks[0];
-                    }
-                }
-
-                return null;
-            }
-            finally
-            {
-                cacheTask.Clear();
-            }
-        }
     }
 
 }

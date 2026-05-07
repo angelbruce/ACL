@@ -1,17 +1,13 @@
 ﻿using ABL;
+using ACL.business.flow;
 using ACL.dao;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
 
 namespace ACL.uc
 {
     public partial class ucFlowDataList : UserControl
     {
+        private FlowAgent agent;
         private Panel panelContainer;
         public ucFlowDataList()
         {
@@ -88,16 +84,6 @@ namespace ACL.uc
             ShowFlows();
         }
 
-        private void StartFlow(object sender, EventArgs e)
-        {
-
-        }
-
-        private void StopFlow(object sender, EventArgs e)
-        {
-
-        }
-
         private void OnConfig(object sender, EventArgs e)
         {
             panelContainer.Controls.Clear();
@@ -120,6 +106,52 @@ namespace ACL.uc
         private void dgvFlow_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             OnConfig(sender, e);
+        }
+
+        private void OnStart(object sender, EventArgs e)
+        {
+            try
+            {
+                var rows = this.dgvFlow.SelectedRows;
+                if (rows == null || rows.Count == 0) return;
+
+                var id = (long)rows[0].Cells[0].Value;
+                if (agent != null)
+                {
+                    if (id == agent.FlowId)
+                    {
+                        agent.Configure();
+                        agent.Start();
+                        return;
+                    }
+                }
+
+
+
+                agent = new FlowAgent(id, null);
+                agent.Configure();
+                agent.Start();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void OnStop(object sender, EventArgs e)
+        {
+            var rows = this.dgvFlow.SelectedRows;
+            if (rows == null || rows.Count == 0) return;
+
+            var id = (long)rows[0].Cells[0].Value;
+            if (agent != null)
+            {
+                if (id == agent.FlowId)
+                {
+                    agent.Stop();
+                    return;
+                }
+            }
         }
     }
 }
