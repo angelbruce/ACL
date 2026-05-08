@@ -32,9 +32,8 @@ namespace ACL.business.flow
             }
 
             //头部不参与计算
-            var nodes = blueprint.Head.ToNodes;
-            if (nodes == null || nodes.Count == 0) return;
-
+            var head = blueprint.Head;
+            var nodes = new List<Node<AgentTask>>() { head };
             currents.AddRange(nodes);
 
             var channelMap = new Dictionary<string, Channel<string>>();

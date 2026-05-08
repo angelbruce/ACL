@@ -100,8 +100,41 @@ function useModel(e) {
 }
 
 
-function Style(st) {
+function Style(st, type) {
     this.dc = {}
+
+
+    this.style = 'fillColor=#eac133;strokeColor=#6666aa;lineWidth=2;rounded=2;fontColor=#000000;';
+    this.cirStyleStart = 'shape=ellipse;fillColor=#ffddaa;strokeColor=#3366aa;lineWidth=2;rounded=2;fontColor=#000000;';
+    this.cirStyleTerminate = 'shape=ellipse;fillColor=#1133aa;strokeColor=#3366aa;lineWidth=2;rounded=2;fontColor=#000000;';
+    this.cirStyleEnd = 'shape=ellipse;fillColor=#112233;strokeColor=#3366aa;lineWidth=2;rounded=2;fontColor=#ffffff;';
+    this.cirStyleAsk = 'shape=ellipse;fillColor=#eedd33;strokeColor=#3366aa;lineWidth=2;rounded=2;fontColor=#000000;';
+    this.cirStylePrompt = 'shape=ellipse;fillColor=#33ddaa;strokeColor=#3366aa;lineWidth=2;rounded=2;fontColor=#000000;';
+
+    this.styles = {}
+    this.styles[-100] = this.cirStylePrompt;
+    this.styles[-101] = this.cirStyleAsk;
+    this.styles[-102] = this.cirStyleEnd;
+    this.styles[-103] = this.cirStyleTerminate;
+    this.styles[-104] = this.cirStyleStart;
+
+    this.styleTypes = {}
+    this.styleTypes['prompt'] = -100;
+    this.styleTypes['ask'] = -101;
+    this.styleTypes['over'] = -102;
+    this.styleTypes['terminate'] = -103;
+    this.styleTypes['start'] = -104;
+
+    if (!st) {
+        if (!type) type = 'agent';
+        if (!this.styleTypes.hasOwnProperty(type)) {
+            st = this.style;
+        } else {
+            var id = this.styleTypes[type];
+            st = this.styles[id];
+        }
+    }
+
 
     this.init(st);
 }
@@ -144,8 +177,6 @@ Style.prototype.init = function (str) {
     }
 }
 
-var style = 'fillColor=#eac133;fillOpacity=0.8;strokeColor=#6666aa;lineWidth=2;rounded=2;fontColor=#000000;';
-var cirStyle = 'shape=ellipse;fillColor=#33dd33;fillOpacity=0.8;strokeColor=#3366aa;lineWidth=2;rounded=2;fontColor=#000000;';
 
 var lineStyle = 'strokeColor=#6666aa;'
 function putMod(e) {
@@ -153,10 +184,10 @@ function putMod(e) {
     var x = e.x - document.getElementById('models').clientWidth;
     var y = e.y - document.getElementById('tools').clientHeight;
     var name = current.Name;
-    var s = current.type === 'agent' ? style : cirStyle;
-    var st = new Style(s);
+    var st = new Style(null, current.type);
     st.set('type', current.type);
-    s = st.toString();
+    st.set('agent', current.Id);
+    var s = st.toString();
     graph.insertVertex(parent, null, name, x, y, 100, 40, s);
     current.Id = 0;
     return false;
@@ -211,8 +242,13 @@ function loadConfig() {
     }).then(resp => {
         resp.json().then(d => {
             if (d.Success) {
+
                 if (!(d.Data && d.Data.vertices && d.Data.vertices.length > 0)) {
-                    graph.insertVertex(parent, null, '开始', 100, 100, 40, 40, style);
+                    var st = new Style(null, 'start');
+                    st.set('agent', '-104');
+                    st.set('type', 'start');
+                    var s = st.toString();
+                    graph.insertVertex(parent, null, '开始', 100, 100, 40, 40, s);
                 }
                 customDeserialize(graph, d.Data);
             }
@@ -254,6 +290,7 @@ function customSerialize(model) {
         if (v.vertex) {
             var st = new Style(v.style);
             var type = st.get('type');
+            var agent = st.get('agent')
             var geo = v.geometry;
             var data = {
                 id: v.id,
@@ -262,7 +299,8 @@ function customSerialize(model) {
                 width: geo.width,
                 x: geo.x,
                 y: geo.y,
-                type: type
+                type: type,
+                agent: agent
             }
 
             serializedData.vertices.push(data);
@@ -291,9 +329,9 @@ function customDeserialize(graph, loadedData) {
         var vData = loadedData.vertices[i];
         // 创建一个新的顶点实例
         //  graph.insertVertex(parent, null, name, x, y, 100, 40, null);
-        var s = vData.type === 'agent' ? style : cirStyle;
-        var st = new Style(s);
+        var st = new Style(null, vData.type);
         st.set('type', vData.type);
+        st.set('agent', vData.agent)
         s = st.toString();
         const newVertex = graph.insertVertex(
             parent,

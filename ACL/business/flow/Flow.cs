@@ -117,7 +117,7 @@ namespace ACL.business.flow
             var agentMap = agents.ToDictionary(x => x.Id + "", y => y);
 
             var config = flow.Config;
-            if (config == null) throw new InvalidFlowConfigException(); ;
+            if (config == null) throw new InvalidFlowConfigException(); 
 
             var description = config.Desc;
             if (description == null || description.Length == 0) throw new InvalidFlowConfigException();
