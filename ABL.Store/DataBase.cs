@@ -5,6 +5,10 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Net.Http.Headers;
+using System.Reflection;
+using System.Text;
 
 namespace ABL.Store
 {
@@ -149,7 +153,211 @@ namespace ABL.Store
             return dt;
         }
 
-        public List<T> Fill<T>(string commandText = null, bool safeRead = false, CommandType commandType = CommandType.Text, DbParameter[] parameters = null) where T : AbstractData, new()
+        public T? Fetch<T>(object pkVal, string? where = null, DbParameter[]? parameters = null) where T : AbstractData, new()
+        {
+            var map = MapCollector.Get(typeof(T));
+            var reverseMap = new Dictionary<string, string>();
+            map.Fields.ForEach(d => reverseMap.Add(d.Name, d.PropertyName));
+
+            var pk = map.Pk;
+            if (pk == null) return default;
+
+
+            var commandText = map.ToSelect();
+            commandText += $" where {pk.Name}=?";
+            if (where != null) commandText += $" and {where}";
+            var p = creator.CreateDataParameter();
+            p.Value = pkVal;
+
+            var list = new List<DbParameter>() { p };
+            if (parameters != null && parameters.Length > 0)
+            {
+                list.AddRange(parameters);
+            }
+
+            parameters = list.ToArray();
+            var datas = Fill<T>(commandText, false, CommandType.Text, parameters);
+            return datas == null || datas.Count == 0 ? default : datas[0];
+        }
+
+
+        public T? Fetch<T>(Expression<Func<T, bool>> where) where T : AbstractData, new()
+        {
+            var map = MapCollector.Get(typeof(T));
+            var reverseMap = new Dictionary<string, string>();
+            map.Fields.ForEach(d => reverseMap.Add(d.PropertyName, d.Name));
+            var sql = map.ToSelect();
+
+            var commandText = map.ToSelect();
+            var whereBuilder = new StringBuilder();
+            var parameters = new List<DbParameter>();
+            VisitWhereExpr(where.Body, whereBuilder, reverseMap, parameters);
+            if (whereBuilder.Length > 0) sql = $"{sql} where {whereBuilder}";
+
+            var datas = Fill<T>(sql, false, CommandType.Text, parameters.ToArray());
+            return datas == null || datas.Count == 0 ? default : datas[0];
+        }
+
+        public List<T> List<T>(string? where = null, DbParameter[]? parameters = null) where T : AbstractData, new()
+        {
+            var map = MapCollector.Get(typeof(T));
+            var reverseMap = new Dictionary<string, string>();
+            map.Fields.ForEach(d => reverseMap.Add(d.Name, d.PropertyName));
+
+            var commandText = map.ToSelect();
+            if (!string.IsNullOrEmpty(where)) commandText += $" where {where}";
+
+            return Fill<T>(commandText, false, CommandType.Text, parameters);
+        }
+
+        public List<T> Fill<T>(Expression<Func<T, bool>> where) where T : AbstractData, new()
+        {
+            var map = MapCollector.Get(typeof(T));
+            var reverseMap = new Dictionary<string, string>();
+            map.Fields.ForEach(d => reverseMap.Add(d.PropertyName, d.Name));
+
+            var sql = map.ToSelect();
+            var whereBuilder = new StringBuilder();
+            var parameters = new List<DbParameter>();
+            VisitWhereExpr(where.Body, whereBuilder, reverseMap, parameters);
+            if (whereBuilder.Length > 0) sql = $"{sql} where {whereBuilder}";
+            return Fill<T>(sql, false, CommandType.Text, parameters.ToArray());
+        }
+
+        private void VisitWhereExpr(Expression expression, StringBuilder where, Dictionary<string, string> reverseMap, List<DbParameter> parameters)
+        {
+            if (expression is BinaryExpression binaryExpr)
+            {
+                where.Append("(");
+                VisitWhereExpr(binaryExpr.Left, where, reverseMap, parameters);
+
+                switch (binaryExpr.NodeType)
+                {
+                    case ExpressionType.Add:
+                        where.Append('+');
+                        break;
+                    case ExpressionType.Multiply:
+                        where.Append('*');
+                        break;
+                    case ExpressionType.Divide:
+                        where.Append('/');
+                        break;
+                    case ExpressionType.Subtract:
+                        where.Append('-');
+                        break;
+
+                    case ExpressionType.Equal:
+                        where.Append('=');
+                        break;
+                    case ExpressionType.NotEqual:
+                        where.Append("<>");
+                        break;
+                    case ExpressionType.GreaterThan:
+                        where.Append(">");
+                        break;
+
+                    case ExpressionType.GreaterThanOrEqual:
+                        where.Append(">=");
+                        break;
+
+                    case ExpressionType.LessThan:
+                        where.Append("<");
+                        break;
+                    case ExpressionType.LessThanOrEqual:
+                        where.Append("<=");
+                        break;
+
+                    case ExpressionType.And:
+                    case ExpressionType.AndAlso:
+                        where.Append(") and (");
+                        break;
+                    case ExpressionType.Or:
+                    case ExpressionType.OrElse:
+                        where.Append(") or (");
+                        break;
+
+                    case ExpressionType.Not:
+                        where.Append(" not ");
+                        break;
+
+                }
+
+                VisitWhereExpr(binaryExpr.Right, where, reverseMap, parameters);
+                where.Append(")");
+            }
+            else if (expression is MemberExpression memberExpr)
+            {
+                //var expr = memberExpr.Member.MemberType
+                switch (memberExpr.Member.MemberType)
+                {
+                    case MemberTypes.Property:
+                        var memberName = memberExpr.Member.Name;
+                        var column = reverseMap.ContainsKey(memberName) ? reverseMap[memberName] : memberName;
+                        where.Append(column);
+                        break;
+                    case MemberTypes.Field:
+                        object instance = null;
+                        var fieldInfo = (FieldInfo)memberExpr.Member;
+                        if (memberExpr.Expression != null)
+                        {
+                            // 递归求值以获取实例对象
+                            // 这里需要一个辅助方法来计算表达式的值
+                            instance = EvaluateExpression(memberExpr.Expression);
+                        }
+
+                        // 2. 获取字段值
+                        object fieldValue = fieldInfo.GetValue(instance);
+                        var parameter = creator.CreateDataParameter();
+                        parameter.ParameterName = memberExpr.Member.Name;
+                        parameter.Value = fieldValue;
+                        parameter.DbType = DbType.Object;
+                        where.AppendFormat("?");
+                        parameters?.Add(parameter);
+                        break;
+                }
+
+            }
+
+            else if (expression is ConstantExpression constExpr)
+            {
+                where.Append(constExpr.Value?.ToString() ?? "null");
+            }
+            else
+            {
+                throw new NotSupportedException($"Expression type {expression.GetType().Name} is not supported.");
+            }
+        }
+
+        private object EvaluateExpression(Expression expr)
+        {
+            if (expr == null) return null;
+
+            switch (expr.NodeType)
+            {
+                case ExpressionType.Constant:
+                    return ((ConstantExpression)expr).Value;
+
+                case ExpressionType.MemberAccess:
+                    var memberExpr = (MemberExpression)expr;
+                    var instance = EvaluateExpression(memberExpr.Expression);
+
+                    if (memberExpr.Member is PropertyInfo prop)
+                        return prop.GetValue(instance);
+                    else if (memberExpr.Member is FieldInfo field)
+                        return field.GetValue(instance);
+                    else
+                        throw new NotSupportedException();
+
+                default:
+                    // 对于更复杂的表达式，可以编译并执行
+                    var lambda = Expression.Lambda(expr);
+                    var compiled = lambda.Compile();
+                    return compiled.DynamicInvoke();
+            }
+        }
+
+
+        public List<T> Fill<T>(string? commandText = null, bool safeRead = false, CommandType commandType = CommandType.Text, DbParameter[]? parameters = null) where T : AbstractData, new()
         {
             DbDataReader reader = null;
             var map = MapCollector.Get(typeof(T));

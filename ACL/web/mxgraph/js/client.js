@@ -32,30 +32,37 @@ function initialize() {
 }
 
 function loadAgents() {
+    showMods();
     fetch('http://local.res/agents').then(resp => {
         console.log(resp);
         var json = resp.json();
         json.then((data) => {
             console.log(data);
             if (data.Success) {
-                var models = document.getElementById('models');
+                //var models = document.getElementById('models');
                 var datas = data.Data || [];
-                datas.push({ Id: -100, Name: '提示词', type: 'prompt' });
-                datas.push({ Id: -101, Name: '询问', type: 'ask' });
-                datas.push({ Id: -102, Name: '结束', type: 'over' });
-                datas.push({ Id: -103, Name: '终止', type: 'terminate' });
+                //datas.push({ Id: -100, Name: '提示词', type: 'prompt' });
+                //datas.push({ Id: -101, Name: '动作', type: 'ask' });
+                //datas.push({ Id: -102, Name: '结束', type: 'over' });
+                //datas.push({ Id: -103, Name: '终止', type: 'terminate' });
+                //datas.push({ Id: -105, Name: '执行', type: 'terminate' });
+                var ele = document.getElementById('agent');
                 for (var i = 0; i < data.Data.length; i++) {
                     var d = data.Data[i];
-                    var div = document.createElement('div');
-                    div.innerText = d.Name;
-                    console.log(d.Name);
-                    div.className = 'model-item';
-                    div.setAttribute('data-id', d.Id + '');
-                    div.setAttribute('data-type', d.type ? d.type : 'agent');
-                    models.appendChild(div);
+                    //var div = document.createElement('div');
+                    //div.innerText = d.Name;
+                    //console.log(d.Name);
+                    //div.className = 'model-item';
+                    //div.setAttribute('data-id', d.Id + '');
+                    //div.setAttribute('data-type', d.type ? d.type : 'agent');
+                    //models.appendChild(div);
+                    var opt = document.createElement('option');
+                    opt.value = d.Id;
+                    opt.innerText = d.Name;
+                    ele.appendChild(opt);
                 }
 
-                addUseListener();
+                //addUseListener();
 
             } else {
                 alert(d.Message);
@@ -65,6 +72,28 @@ function loadAgents() {
     }).catch(e => {
         console.log(e);
     })
+}
+
+
+function showMods() {
+    var models = document.getElementById('models');
+    var datas = [];
+    datas.push({ Id: -100, Name: '提示词', type: 'prompt' });
+    datas.push({ Id: -101, Name: '动作', type: 'ask' });
+    datas.push({ Id: -102, Name: '结束', type: 'over' });
+    datas.push({ Id: -103, Name: '终止', type: 'terminate' });
+    datas.push({ Id: -105, Name: '执行', type: 'terminate' });
+    for (var i = 0; i < datas.length; i++) {
+        var d = datas[i];
+        var div = document.createElement('div');
+        div.innerText = d.Name;
+        div.className = 'model-item';
+        div.setAttribute('data-id', d.Id + '');
+        div.setAttribute('data-type', d.type ? d.type : 'agent');
+        models.appendChild(div);
+    }
+
+    addUseListener();
 }
 
 function addUseListener() {
@@ -99,6 +128,7 @@ function useModel(e) {
     return false;
 }
 
+var lineStyle = ''
 
 function Style(st, type) {
     this.dc = {}
@@ -137,6 +167,14 @@ function Style(st, type) {
 
 
     this.init(st);
+}
+
+Style.prototype.type = function () {
+    return this.get('type');
+}
+
+Style.prototype.agent = function () {
+    return this.get('agent');
 }
 
 Style.prototype.toString = function () {
@@ -178,8 +216,23 @@ Style.prototype.init = function (str) {
 }
 
 
-var lineStyle = 'strokeColor=#6666aa;'
+var nodeEditPanel = new NodeEditPanel();
+
 function putMod(e) {
+    dropDownMod(e);
+    var selections = graph.getSelectionCells();
+    if (!selections || selections.length == 0) {
+        nodeEditPanel.setCurrent(null);
+        return;
+    }
+
+    var first = selections[0]
+    nodeEditPanel.setCurrent(first);
+
+    return false;
+}
+
+function dropDownMod(e) {
     if (current.Id == 0) return;
     var x = e.x - document.getElementById('models').clientWidth;
     var y = e.y - document.getElementById('tools').clientHeight;
@@ -188,9 +241,9 @@ function putMod(e) {
     st.set('type', current.type);
     st.set('agent', current.Id);
     var s = st.toString();
-    graph.insertVertex(parent, null, name, x, y, 100, 40, s);
+    var vetex = graph.insertVertex(parent, null, name, x, y, 100, 40, s);
+    if (vetex) graph.selectCells([vetex]);
     current.Id = 0;
-    return false;
 }
 
 
@@ -208,6 +261,25 @@ function removeGrap() {
     graph.removeCells(nodes);
 }
 
+function onSelectEdge() {
+    var nodes = graph.getSelectionCells(parent);
+    if (!nodes) return;
+    if (nodes.length == 0) return;
+
+    var edgeStyleEle = document.getElementById('edgeStyle');
+    var edgeStyle = edgeStyleEle.value;
+
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (!node.edge) return;
+        var st = new Style(node.style);
+        st.dc = {};
+        st.set('edgeStyle', edgeStyle);
+        node.style = st.toString();
+    }
+
+    graph.refresh();
+}
 
 function connect() {
     var nodes = graph.getSelectionCells(parent);
@@ -222,8 +294,48 @@ function connect() {
                 last = node;
                 continue;
             } else {
-                graph.insertEdge(parent, null, '下一步', last, node, lineStyle);
-                last = node;
+                try {
+                    var ltype = new Style(last.style).type()
+                    var ntype = new Style(node.style).type()
+
+                    if (ltype != 'ask' && ntype != 'ask') {
+                        if (ltype == ntype) {
+                            //相同类型，不能连线
+                            continue;
+                        }
+                    }
+
+
+                    if (ltype == 'agent' && ntype != 'ask') return;
+                    if (ntype == 'agent' && ltype != 'ask') return;
+
+
+                    if (ltype == 'prompt' && ntype != 'ask') continue;
+                    if (ntype == 'prompt' && ltype != 'ask') continue;
+
+                    var from = last;
+                    var to = node;
+                    if ((ltype == 'ask' && ntype == 'prompt')
+                        || (ltype == 'terminate' && ntype != 'terminate')
+                        || (ltype == 'over' && ntype != 'over')
+                        || (ltype != 'start' && ntype == 'start')
+                        || (ltype == 'ask' && ntype == 'agent')
+                    ) {
+                        from = node;
+                        to = last;
+                    }
+
+                    var value = '下一步'
+                    if (ltype == 'prompt' || ntype == 'prompt') value = '角色';
+                    else if (ltype == 'agent' && ntype == 'ask') value = '执行者';
+                    else if (ltype == 'ask' && ntype == 'agent') value = '执行者';
+
+
+                    graph.insertEdge(parent, null, value, from, to, lineStyle);
+                    last = node;
+                } catch (e) { } finally {
+                    last = node;
+                }
             }
         }
     }
@@ -292,6 +404,7 @@ function customSerialize(model) {
             var type = st.get('type');
             var agent = st.get('agent')
             var geo = v.geometry;
+            var nd = nodeMap.hasOwnProperty(v.id) ? nodeMap[v.id] : null;
             var data = {
                 id: v.id,
                 value: v.value,
@@ -300,7 +413,10 @@ function customSerialize(model) {
                 x: geo.x,
                 y: geo.y,
                 type: type,
-                agent: agent
+                agent: agent,
+                prompt: !nd ? '' : nd.prompt,
+                degree: !nd ? '' : nd.degree,
+                paths: !nd ? [] : nd.paths,
             }
 
             serializedData.vertices.push(data);
@@ -311,6 +427,7 @@ function customSerialize(model) {
                 value: v.value,
                 src: v.source.id,
                 target: v.target.id,
+                style: v.style
             }
 
             serializedData.edges.push(data);
@@ -344,8 +461,13 @@ function customDeserialize(graph, loadedData) {
             s
         );
         vertexMap.set(vData.id + '', newVertex);
+
+        var node = new Node();
+        node.prompt = vData.prompt;
+        node.paths = vData.paths;
+        node.degree = vData.degree;
+        nodeMap[vData.id] = node;
     }
-    ;
 
     // 3. 遍历边，建立连接 (Edges)
     for (var i = 0; i < loadedData.edges.length; i++) {
@@ -356,9 +478,180 @@ function customDeserialize(graph, loadedData) {
         if (sourceVertex && targetVertex) {
             // 插入边时，使用预先创建的顶点实例
             //graph.insertEdge(parent, null, '关联', last, node, '');
-            graph.insertEdge(parent, eData.id, eData.value, sourceVertex, targetVertex, lineStyle);
+            graph.insertEdge(parent, eData.id, eData.value, sourceVertex, targetVertex, eData.style || '');
         }
     }
 
 }
 
+
+var agentEle = document.getElementById('agent');
+var promptEle = document.getElementById('prompt');
+var nameEle = document.getElementById('node');
+var attributeEle = document.getElementById('attribute');
+var pathsEle = document.getElementById('paths');
+var degreeEle = document.getElementById('degree');
+var nodeMap = {};
+
+function Node() {
+    this.id;
+    this.name;
+    this.prompt;
+    this.agent;
+    this.degree;
+    this.paths = [];
+}
+
+function NodeEditPanel() {
+    this.node = null;
+}
+
+NodeEditPanel.prototype.clear = function (nd) {
+    agentEle.value = null;
+    promptEle.value = '';
+    nameEle.innerText = '';
+}
+
+NodeEditPanel.prototype.hide = function () {
+    attributeEle.style.display = 'none'
+}
+
+NodeEditPanel.prototype.show = function () {
+    attributeEle.style.display = 'block'
+    this.showEdge();
+}
+
+NodeEditPanel.prototype.showEdge = function () {
+    var vxs = document.querySelector('.vertex');
+    for (var i = 0; i < vxs.length; i++) {
+        vxs[i].style.display = 'block';
+    }
+}
+
+NodeEditPanel.prototype.hideEdge = function () {
+    var vxs = document.querySelector('.vertex');
+    for (var i = 0; i < vxs.length; i++) {
+        vxs[i].style.display = 'none';
+    }
+}
+
+NodeEditPanel.prototype.setCurrent = function (nd) {
+    this.clear();
+    this.node = nd;
+    if (!this.node) {
+        this.hide();
+        return;
+    }
+
+    if (this.node.edge) {
+        this.hide();
+        return;
+    }
+
+    var st = new Style(this.node.style);
+    var agent = st.agent();
+    var type = st.type();
+    if (type != 'ask') {
+        this.hide();
+        return;
+    }
+
+    this.show();
+
+    var node = new Node();
+    node.id = nd.id;
+    node.name = nd.value;
+    node.agent = agent;
+    if (nodeMap.hasOwnProperty(nd.id)) {
+        node.prompt = nodeMap[nd.id].prompt;
+        node.paths = nodeMap[nd.id].paths || [];
+        node.degree = nodeMap[nd.id].degree || '100';
+    }
+
+    nodeMap[nd.id] = node;
+
+
+    nameEle.innerText = this.node.value;
+    promptEle.value = node.prompt;
+    agentEle.value = agent;
+    degreeEle.value = node.degree;
+
+    this.setPaths(node);
+}
+
+NodeEditPanel.prototype.setPaths = function (info) {
+    pathsEle.innerHTML = '';
+
+    if (!this.node) return;
+    var es = this.node.edges;
+    if (!es || es.length == 0) return;
+
+    var list = []
+    for (var i = 0; i < es.length; i++) {
+        var e = es[i];
+        if (e.target.id != this.node.id) continue;
+        list.push(e)
+    }
+
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i]
+        var option = document.createElement('div')
+       
+        var input = document.createElement('input');
+        input.className = 'path-input'; 
+        input.type = 'checkbox';
+        var attr = document.createAttribute('data-id');
+        attr.value = e.id;
+        input.setAttributeNode(attr);
+        input.checked = false;
+        for (var j = 0; j < info.paths.length; j++) {
+            var path = info.paths[j];
+            if (path === e.id) {
+                input.checked = true;
+                break;
+            }
+        }
+
+        option.appendChild(input);
+
+        var label = document.createElement('label')
+        label.style.borderBottom = 'solid 1px whitesmoke'
+        label.innerHTML = "[" + e.source.value + "] -> [" + e.value + "]";
+        option.appendChild(label);
+
+
+        pathsEle.appendChild(option);
+    }
+}
+
+
+NodeEditPanel.prototype.confirm = function () {
+    if (!this.node) return;
+
+    var st = new Style(this.node.style);
+    st.set('agent', agentEle.value);
+    this.node.style = st.toString();
+
+    var nd = nodeMap[this.node.id];
+    nd.prompt = promptEle.value;
+    nd.degree = degreeEle.value;
+    nd.paths = [];
+    var chks = document.querySelectorAll('.path-input');
+    for (var i = 0; i < chks.length; i++) {
+        var chk = chks[i];
+        if (chk.checked) {
+            nd.paths.push(chk.getAttribute('data-id'));
+        }
+    }
+
+    graph.clearSelection();
+    this.clear();
+    this.hide();
+}
+
+
+function onConfirmNode(e) {
+    nodeEditPanel.confirm();
+}
+
+nodeEditPanel.setCurrent(null);

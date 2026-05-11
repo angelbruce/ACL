@@ -10,7 +10,7 @@ namespace ACL.business.flow
     {
         private long flowId;
         private Channel<string> output;
-        private FlowRuntime? flowRuntime;
+        private FlowRuntimeCore? flowRuntime;
 
         public long FlowId { get { return flowId; } }
 
@@ -32,7 +32,7 @@ namespace ACL.business.flow
             var flowBody = store.GetFlowBody(flowId);
             var flow = new Flow(flowBody);
             var flowActionGraph = flow.Configure();
-            flowRuntime = new FlowRuntime(flowActionGraph);
+            flowRuntime = new FlowRuntimeCore(flowActionGraph);
             flowRuntime.Configure(output);
         }
 

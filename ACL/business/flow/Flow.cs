@@ -1,13 +1,13 @@
 ﻿using ACL.business.agent;
 using ACL.dao;
 using ACL.flow;
+using ABL;
 using ACL.web;
 
 namespace ACL.business.flow
 {
     class Flow
     {
-        public const string FLOW_START_NAME = "开始";
 
         private DataStore datastore;
         private FlowBody flow;
@@ -23,12 +23,10 @@ namespace ACL.business.flow
         {
             var actions = CreateActions();
             var agents = CreateAgentTask(actions);
-            if (agents.Head == null)
+            if (agents.Heads == null)
             {
                 throw new InvalidFlowConfigException();
             }
-
-            flow = null;
 
             return agents;
         }
@@ -66,20 +64,23 @@ namespace ACL.business.flow
                 var agentId = action?.Data?.AgentInfo?.Id;
                 if (agentId == null) throw new InvalidFlowException();
 
-           
+
                 var agentBody = datastore.GetAgent(agentId.Value);
                 if (agentBody == null) throw new InvalidFlowException();
 
                 task.Body = agentBody;
                 agent = new Agent(task);
 
+                task.Degree = action?.Data?.DegreeForChoice;
+                task.Choices = action?.Data?.NextChoices;
+                task.Prompts = action?.Data?.Prompts;
                 //construct the graph node from task data info.
                 task.Agent = agent;
                 var node = graph.AddNode(task);
                 if (action.IsHead)
                 {
                     node.IsHead = true;
-                    graph.Head = node;
+                    graph.Heads.Add(node);
                 }
                 //map the action graph node id to new added graph node to construct graph edge.
                 map[id] = node;
@@ -117,7 +118,7 @@ namespace ACL.business.flow
             var agentMap = agents.ToDictionary(x => x.Id + "", y => y);
 
             var config = flow.Config;
-            if (config == null) throw new InvalidFlowConfigException(); 
+            if (config == null) throw new InvalidFlowConfigException();
 
             var description = config.Desc;
             if (description == null || description.Length == 0) throw new InvalidFlowConfigException();
@@ -134,61 +135,68 @@ namespace ACL.business.flow
             foreach (var item in model.vertices)
             {
                 var aid = item.agent;
-                if (item.value.Equals(FLOW_START_NAME))
+
+                var node = new Action
                 {
-                    startId = item.id;
-                    continue;
+                    Id = item.id,
+                    Type = item.type.ParseTo<EnumActionType>(),
+                };
+
+                switch (node.Type)
+                {
+                    case EnumActionType.start:
+                        startId = item.id;
+                        break;
+                    case EnumActionType.terminate:
+                    case EnumActionType.over:
+                        continue;
                 }
 
-                if (aid != null)
+                //没有执行者
+                if (aid == null) throw new InvalidFlowConfigException();
+                var agentId = aid.Value + "";
+
+                if (!agentMap.ContainsKey(agentId)) throw new InvalidFlowConfigException();
+
+                var agent = agentMap[agentId];
+                node.AgentInfo = agent;
+                if (!string.IsNullOrEmpty(item.prompt))
                 {
-                    var agentId = aid.Value + "";
-                    if (!agentMap.ContainsKey(agentId)) continue;
-                    var agent = agentMap[agentId];
-                    var node = new Action
-                    {
-                        Id = item.id,
-                        AgentInfo = agent,
-                        Type = item.type
-                    };
-                    var actionNode = graph.AddNode(node);
-                    actionMap[item.id] = actionNode;
-                    continue;
+                    node.Prompts = new List<string>() { item.prompt };
                 }
 
-                others[item.id] = item;
+                node.NextChoices = new List<string>();
+                if (item.paths != null && item.paths.Count > 0)
+                {
+                    node.NextChoices.AddRange(item.paths);
+                }
+
+                node.DegreeForChoice = item.degree;
+
+                var actionNode = graph.AddNode(node);
+                actionMap[item.id] = actionNode;
             }
 
-            string? nextId = null;
+
+            var nextIds = new HashSet<string>();
             if (model.edges != null && model.edges.Count > 0)
             {
                 foreach (var edge in model.edges)
                 {
+                    var val = edge.value;
+                    if (string.IsNullOrEmpty(val)) throw new InvalidFlowConfigException();
+
                     var src = edge.src;
                     var target = edge.target;
 
                     if (src == startId)
                     {
-                        nextId = target;
+                        nextIds.Add(target);
                         continue;
                     }
 
-                    var srcPrompts = new List<string>();
-                    var fromNode = FindNodeOrPrompts(src, edge, model.edges, others, actionMap, srcPrompts);
-                    //悬空的节点不考虑。
-                    if (fromNode != null)
-                    {
-                        fromNode.Data?.Asks.AddRange(srcPrompts);
-                    }
-
-                    var targetPrompts = new List<string>();
-                    var toNode = FindNodeOrPrompts(target, edge, model.edges, others, actionMap, targetPrompts);
-                    //悬空的节点不考虑。
-                    if (toNode != null)
-                    {
-                        toNode.Data?.Asks.AddRange(targetPrompts);
-                    }
-
+                    var fromNode = FindNode(src, actionMap);
+                    var toNode = FindNode(target, actionMap);
                     if (fromNode != null && toNode != null)
                     {
                         var actionEdge = new Edge<Action>
@@ -202,17 +210,17 @@ namespace ACL.business.flow
                 }
             }
 
-            if (string.IsNullOrEmpty(startId) || string.IsNullOrEmpty(nextId))
+            if (string.IsNullOrEmpty(startId) || nextIds.Count == 0)
             {
                 throw new InvalidFlowConfigException();
             }
 
             foreach (var edge in graph.Edges)
             {
-                if (edge?.From?.Data?.Id == nextId)
+                if (nextIds.Contains(edge?.From?.Data?.Id))
                 {
                     edge.From.IsHead = true;
-                    graph.Head = edge.From;
+                    graph.Heads.Add(edge.From);
                     break;
                 }
             }
@@ -220,34 +228,11 @@ namespace ACL.business.flow
             return graph;
         }
 
-        private Node<Action>? FindNodeOrPrompts(string id, Edge e, List<Edge> es, Dictionary<string, Vertex> others, Dictionary<string, Node<Action>> actionMap, List<string> prompts)
+
+        private Node<Action>? FindNode(string id, Dictionary<string, Node<Action>> actionMap)
         {
             //找到此id
             if (actionMap.ContainsKey(id)) return actionMap[id];
-
-            if (others.ContainsKey(id))
-            {
-                var vertex = others[id];
-                prompts.Insert(0, vertex.value);
-
-                //发起的，找终结点
-                if (id == e.src)
-                {
-                    var edge = es.Where(x => x.target == e.src).FirstOrDefault();
-                    if (edge != null)
-                    {
-                        return FindNodeOrPrompts(edge.src, edge, es, others, actionMap, prompts);
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-                else if (id == e.target)
-                {
-                    return FindNodeOrPrompts(e.src, e, es, others, actionMap, prompts);
-                }
-            }
 
             return null;
         }

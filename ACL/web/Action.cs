@@ -86,6 +86,9 @@ namespace ACL.web
         public long y { get; set; }
         public string type { get; set; }
         public long? agent { get; set; }
+        public string? prompt { get; set; }
+        public List<string> paths { get; set; }
+        public string? degree { get; set; }
     }
 
     public class Edge
@@ -94,5 +97,6 @@ namespace ACL.web
         public string value { get; set; }
         public string src { get; set; }
         public string target { get; set; }
+        public string style { get; set; }
     }
 }

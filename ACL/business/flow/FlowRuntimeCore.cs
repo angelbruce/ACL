@@ -7,7 +7,10 @@ using System.Threading.Channels;
 
 namespace ACL.business.flow
 {
-    class FlowRuntime
+    /// <summary>
+    /// 流程运行时
+    /// </summary>
+    class FlowRuntimeCore
     {
         private readonly Graph<AgentTask> blueprint;
         private List<Node<AgentTask>> currents;
@@ -15,7 +18,7 @@ namespace ACL.business.flow
         private volatile bool running;
         public bool Running { get { return running; } }
 
-        public FlowRuntime(Graph<AgentTask> blueprint)
+        public FlowRuntimeCore(Graph<AgentTask> blueprint)
         {
             currents = new List<Node<AgentTask>>();
             this.blueprint = blueprint;
@@ -26,14 +29,13 @@ namespace ACL.business.flow
         {
             if (running) return;
 
-            if (blueprint == null || blueprint.Head == null)
+            if (blueprint == null || blueprint.Heads == null)
             {
                 throw new InvalidFlowConfigException();
             }
 
             //头部不参与计算
-            var head = blueprint.Head;
-            var nodes = new List<Node<AgentTask>>() { head };
+            var nodes = blueprint.Heads;
             currents.AddRange(nodes);
 
             var channelMap = new Dictionary<string, Channel<string>>();
@@ -59,7 +61,7 @@ namespace ACL.business.flow
         /// ANSWER: IF ALL TASK OF THE AGENT'S PLANS FINISHED.
         /// </summary>
         /// <param name="agent"></param>
-        private async void OnAgentTaskFinished(ACL.flow.Agent agent)
+        private async void OnAgentTaskFinished(AgentTask agent)
         {
             if (currents == null) return;
             //任何节点没有完成，就等待。
@@ -82,6 +84,14 @@ namespace ACL.business.flow
             }
         }
 
+
+        /// <summary>
+        /// 什么时候停止？
+        /// action action
+        /// a(in, out) b(in, out)
+        /// ANSWER: IF ALL TASK OF THE AGENT'S PLANS FINISHED.
+        /// </summary>
+        /// <param name="agent"></param>
         private async Task<bool> AssignSession(AgentTask? from, AgentTask? to)
         {
             if (to == null) return false;
@@ -99,6 +109,7 @@ namespace ACL.business.flow
             });
         }
 
+        [Obsolete("此方法仅供测试使用，正式环境请勿调用")]
         public void Start()
         {
             if (running) return;
@@ -113,6 +124,7 @@ namespace ACL.business.flow
             return;
         }
 
+        [Obsolete("此方法仅供测试使用，正式环境请勿调用")]
         public void Stop()
         {
             running = false;

@@ -2,7 +2,7 @@
 {
     class Graph<T>
     {
-        public Node<T>? Head { get; set; } = null;
+        public List<Node<T>> Heads { get; set; } = new List<Node<T>>();
         public List<Node<T>> Nodes { get; set; } = new List<Node<T>>();
         public List<Edge<T>> Edges { get; set; } = new List<Edge<T>>();
 

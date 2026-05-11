@@ -5,7 +5,11 @@ using ABL.Store;
 using ACL.business;
 using ACL.business.content;
 using ACL.dao;
-using YamlDotNet.Serialization;
+using Microsoft.Testing.Platform.Extensions.Messages;
+using System.CodeDom;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Text;
 
 namespace ACL
 {
@@ -18,8 +22,8 @@ namespace ACL
         static void Main()
         {
             AntContext.Instance.Register(LLM_MODEL_RESOURCE);
-            //test();
-            test1();
+            //test2();
+            //test1();
             var driver = DbDriver.Create();
             var databaseSchema = new DataBaseSchema(driver);
             if (!databaseSchema.Initialize())
@@ -32,9 +36,141 @@ namespace ACL
             Application.Run(new Form1());
         }
 
-      
 
+        static void test2()
+        {
+            long id = 10;
+            Expression<Func<FlowRuntime, bool>> where = a => (a.Id == id && a.IsOver == true);
+            var sql = new StringBuilder();
+            VisitWhereExpr(where.Body, sql, new Dictionary<string, string>(), id);
+            var a = sql.ToString();
 
+            Console.Write(a);
+
+        }
+
+        private static void VisitWhereExpr(Expression expression, StringBuilder where, Dictionary<string, string> reverseMap, long id)
+        {
+            if (expression is BinaryExpression binaryExpr)
+            {
+                where.Append("(");
+                VisitWhereExpr(binaryExpr.Left, where, reverseMap, id);
+
+                switch (binaryExpr.NodeType)
+                {
+                    case ExpressionType.Add:
+                        where.Append('+');
+                        break;
+                    case ExpressionType.Multiply:
+                        where.Append('*');
+                        break;
+                    case ExpressionType.Divide:
+                        where.Append('/');
+                        break;
+                    case ExpressionType.Subtract:
+                        where.Append('-');
+                        break;
+
+                    case ExpressionType.Equal:
+                        where.Append('=');
+                        break;
+                    case ExpressionType.NotEqual:
+                        where.Append("<>");
+                        break;
+                    case ExpressionType.GreaterThan:
+                        where.Append(">");
+                        break;
+
+                    case ExpressionType.GreaterThanOrEqual:
+                        where.Append(">=");
+                        break;
+
+                    case ExpressionType.LessThan:
+                        where.Append("<");
+                        break;
+                    case ExpressionType.LessThanOrEqual:
+                        where.Append("<=");
+                        break;
+
+                    case ExpressionType.And:
+                    case ExpressionType.AndAlso:
+                        where.Append(") and (");
+                        break;
+                    case ExpressionType.Or:
+                    case ExpressionType.OrElse:
+                        where.Append(") or (");
+                        break;
+
+                }
+
+                VisitWhereExpr(binaryExpr.Right, where, reverseMap, id);
+                where.Append(")");
+            }
+            else if (expression is MemberExpression memberExpr)
+            {
+                switch (memberExpr.Member.MemberType)
+                {
+                    case System.Reflection.MemberTypes.Property:
+                        var memberName = memberExpr.Member.Name;
+                        var column = reverseMap.ContainsKey(memberName) ? reverseMap[memberName] : memberName;
+                        where.Append(column);
+                        break;
+                    case System.Reflection.MemberTypes.Field:
+                        //how to invoke the expression here?
+                        object instance = null;
+                        var fieldInfo = (FieldInfo)memberExpr.Member;
+                        if (memberExpr.Expression != null)
+                        {
+                            // 递归求值以获取实例对象
+                            // 这里需要一个辅助方法来计算表达式的值
+                            instance = EvaluateExpression(memberExpr.Expression);
+                        }
+
+                        // 2. 获取字段值
+                        object fieldValue = fieldInfo.GetValue(instance);
+
+                        break;
+                }
+
+            }
+
+            else if (expression is ConstantExpression constExpr)
+            {
+                where.Append(constExpr.Value?.ToString() ?? "null");
+            }
+            else
+            {
+                throw new NotSupportedException($"Expression type {expression.GetType().Name} is not supported.");
+            }
+        }
+
+        static object EvaluateExpression(Expression expr)
+        {
+            if (expr == null) return null;
+
+            switch (expr.NodeType)
+            {
+                case ExpressionType.Constant:
+                    return ((ConstantExpression)expr).Value;
+
+                case ExpressionType.MemberAccess:
+                    var memberExpr = (MemberExpression)expr;
+                    var instance = EvaluateExpression(memberExpr.Expression);
+
+                    if (memberExpr.Member is PropertyInfo prop)
+                        return prop.GetValue(instance);
+                    else if (memberExpr.Member is FieldInfo field)
+                        return field.GetValue(instance);
+                    else
+                        throw new NotSupportedException();
+
+                default:
+                    // 对于更复杂的表达式，可以编译并执行
+                    var lambda = Expression.Lambda(expr);
+                    var compiled = lambda.Compile();
+                    return compiled.DynamicInvoke();
+            }
+        }
 
         static void test1()
         {

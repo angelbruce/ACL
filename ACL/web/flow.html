@@ -68,7 +68,7 @@
             height: 20px;
             width: 100%;
             flex-flow: row-reverse;
-            padding-top:10px;
+            padding-top: 10px;
             border-bottom: solid 1px gray;
         }
 
@@ -112,9 +112,9 @@
             height: 20px;
             line-height: 20px;
             padding: 0 10px 0 10px;
-            text-decoration:none;
+            text-decoration: none;
             border: 1px solid gray;
-            margin-right:10px;
+            margin-right: 10px;
         }
 
             a:hover {
@@ -124,6 +124,19 @@
             a:link {
                 color: black;
             }
+
+
+        select {
+            height: 22px;
+            line-height: 22px;
+        }
+
+        .vertex {
+            margin-top: 10px;
+        }
+        .title{
+            font-weight:bold;
+        }
     </style>
 </head>
 <body onload="onInit()">
@@ -133,10 +146,61 @@
             <a href="javascript:return false;" onclick="save(); return false;">保存</a>
             <a href="javascript:return false;" onclick="connect(); return false;">连接</a>
             <a href="javascript:return false;" onclick="removeGrap(); return false;">删除</a>
+            <a href="javascript:return false;" onclick="onSelectEdge(); return false;">修改线样式</a>
+            <select id="edgeStyle">
+                <option value="" selected>‌直线</option>
+                <option value="orthogonalEdgeStyle">正交</option>
+                <option value="elbowEdgeStyle">肘形</option>
+                <option value="entityRelationEdgeStyle">实体关系</option>
+                <option value="loopEdgeStyle">‌自环</option>
+                <option value="sideToSideEdgeStyle">‌侧边</option>
+                <option value="topToBottomEdgeStyle">‌顶到底</option>
+                <option value="segmentEdgeStyle">‌分段</option>
+            </select>
         </div>
         <div class="container">
             <div class="model" id="models"></div>
             <div class="main" id="c"></div>
+            <div class="model" id="attribute" style="height:90%;overflow:hidden;border-left:solid 1px gray;padding:5px;">
+                <div><b><label id="node"></label></b></div>
+                <div class="vertex">
+                    <div class="title">agent</div>
+                    <div class="op">
+                        <select id="agent" style="min-width:100px;">
+                        </select>
+                    </div>
+                </div>
+                <div class="vertex">
+                    <div class="title">角色定义</div>
+                    <div class="op">
+                        <textarea id="prompt" style="min-height:100px;width:100px;">
+                        </textarea>
+                    </div>
+                </div>
+
+                <div class="vertex">
+                    <div class="title">完成路径</div>
+                    <div class="op">
+                        <div id="paths" style="min-width:100px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="vertex">
+                    <div class="title">完成度</div>
+                    <div class="op">
+                        <select id="degree" style="min-width:100px;">
+                            <option value="100">所有完成</option>
+                            <option value="1">任何一项</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <br />
+                    <a href="javascript:return false;" onclick="onConfirmNode(); return false;">确定</a>
+                </div>
+            </div>
         </div>
     </div>
     <script src="http://local.res/web/mxgraph/js/client.js"></script>
