@@ -84,28 +84,15 @@ namespace ACL.dao
 
         public FlowRuntimeBody? GetFlowRuntimeBody(long id)
         {
-            Func<FlowRuntime, bool> filter = a => (a.Id == 0 && a.IsOver == true);
-            var flowRuntime = Fetch<FlowRuntime>(id);
+            var flowRuntime = Fetch<FlowRuntime>(x=>x.Id == 0 && x.IsOver == false);
             if (flowRuntime == null) return null;
 
             var nodes = Fill<FlowRuntimeNode>(t => t.FlowRuntimeId == id);
-            var nodeActions = new List<FlowRuntimeNodeWithActions>();
-            var allNodeActions = Fill<FlowRuntimeNodeAction>(t => t.FlowRuntimeId == id);
-
-            foreach (var node in nodes)
-            {
-                var nodeWithAction = new FlowRuntimeNodeWithActions();
-                node.CopyTo(nodeWithAction);
-                nodeActions.Add(nodeWithAction);
-
-                nodeWithAction.Actions = allNodeActions.Where(a => a.FlowRuntimeNodeId == node.Id).ToList();
-            }
 
             var body = new FlowRuntimeBody
             {
                 Runtime = flowRuntime,
-                Nodes = nodeActions,
-                Actions = allNodeActions
+                Nodes = nodes,
             };
 
             return body;

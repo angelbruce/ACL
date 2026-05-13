@@ -60,7 +60,6 @@ namespace ACL.business.flow
                 var task = new AgentTask(agentInfo);
 
                 //get agent from agent map if exists or create a new agent from agent body
-                Agent? agent = null;
                 var agentId = action?.Data?.AgentInfo?.Id;
                 if (agentId == null) throw new InvalidFlowException();
 
@@ -69,13 +68,10 @@ namespace ACL.business.flow
                 if (agentBody == null) throw new InvalidFlowException();
 
                 task.Body = agentBody;
-                agent = new Agent(task);
-
                 task.Degree = action?.Data?.DegreeForChoice;
                 task.Choices = action?.Data?.NextChoices;
                 task.Prompts = action?.Data?.Prompts;
                 //construct the graph node from task data info.
-                task.Agent = agent;
                 var node = graph.AddNode(task);
                 if (action.IsHead)
                 {
@@ -132,20 +128,21 @@ namespace ACL.business.flow
 
             var others = new Dictionary<string, Vertex>();
             string? startId = null;
-            foreach (var item in model.vertices)
+            foreach (var vertex in model.vertices)
             {
-                var aid = item.agent;
+                var aid = vertex.agent;
 
                 var node = new Action
                 {
-                    Id = item.id,
-                    Type = item.type.ParseTo<EnumActionType>(),
+                    Id = vertex.id,
+                    Ask = vertex.value,
+                    Type = vertex.type.ParseTo<EnumActionType>(),
                 };
 
                 switch (node.Type)
                 {
                     case EnumActionType.start:
-                        startId = item.id;
+                        startId = vertex.id;
                         break;
                     case EnumActionType.terminate:
                     case EnumActionType.over:
@@ -160,21 +157,21 @@ namespace ACL.business.flow
 
                 var agent = agentMap[agentId];
                 node.AgentInfo = agent;
-                if (!string.IsNullOrEmpty(item.prompt))
+                if (!string.IsNullOrEmpty(vertex.prompt))
                 {
-                    node.Prompts = new List<string>() { item.prompt };
+                    node.Prompts = new List<string>() { vertex.prompt };
                 }
 
                 node.NextChoices = new List<string>();
-                if (item.paths != null && item.paths.Count > 0)
+                if (vertex.paths != null && vertex.paths.Count > 0)
                 {
-                    node.NextChoices.AddRange(item.paths);
+                    node.NextChoices.AddRange(vertex.paths);
                 }
 
-                node.DegreeForChoice = item.degree;
+                node.DegreeForChoice = vertex.degree;
 
                 var actionNode = graph.AddNode(node);
-                actionMap[item.id] = actionNode;
+                actionMap[vertex.id] = actionNode;
             }
 
 
@@ -217,11 +214,17 @@ namespace ACL.business.flow
 
             foreach (var edge in graph.Edges)
             {
-                if (nextIds.Contains(edge?.From?.Data?.Id))
+                if (edge == null || edge.To == null || edge.To.Data == null) continue;
+
+                var eid = edge.To.Data.Id;
+                if (nextIds.Contains(eid))
                 {
-                    edge.From.IsHead = true;
-                    graph.Heads.Add(edge.From);
-                    break;
+                    if (edge.From != null)
+                    {
+                        edge.From.IsHead = true;
+                        graph.Heads.Add(edge.From);
+                        break;
+                    }
                 }
             }
 

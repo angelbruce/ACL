@@ -1,25 +1,19 @@
-﻿using ABL.Object;
-using ACL.business;
+﻿using ACL.business;
 using ACL.business.agent;
 using ACL.business.content;
 using ACL.business.flow;
-using ACL.business.llm;
 using ACL.business.log;
 using ACL.business.mcp;
 using ACL.business.project;
-using ACL.business.prompt;
 using ACL.dao;
-using NUnit.Framework;
 using OpenAI.Chat;
-using OpenAI.Responses;
 using System.ClientModel;
-using System.Reflection;
 using System.Text;
 using System.Threading.Channels;
 
 namespace ACL.flow
 {
-    
+
     class Agent : IAgent
     {
         private CancellationTokenSource chatCts = new CancellationTokenSource(10);
@@ -30,10 +24,12 @@ namespace ACL.flow
         private List<ChatMessage> messages;
         private AgentBody agent;
         private AgentTask agentTask;
+        private FlowRuntimeNodeAgent runtimeAgent;
 
-        public Agent(AgentTask agentTask)
+        public Agent(FlowRuntimeNodeAgent runtimeAgent)
         {
-            this.agentTask = agentTask;
+            this.runtimeAgent = runtimeAgent;
+            agentTask = runtimeAgent.AgentTask;
             var body = agentTask.Body;
             if (body == null) throw new InvalidFlowException();
             agent = body;
@@ -120,8 +116,12 @@ namespace ACL.flow
             this.output = channel;
         }
 
+        private bool running = false;
+
         public async Task Serve(Channel<string> channel)
         {
+            if (running) return;
+            running = true;
             try
             {
                 output = channel;
@@ -151,7 +151,7 @@ namespace ACL.flow
                 {
                     if (task != null)
                     {
-                        agentTask.RefreshTask(task);
+                        runtimeAgent.RefreshTask(task);
                         var needHumanToJoin = false;
                         if (!string.IsNullOrEmpty(task.NextActionPlan))
                         {
@@ -213,7 +213,7 @@ namespace ACL.flow
             //消息缓存
             var cacheTask = new StringBuilder();
             //开始会话
-            while (true)
+            while (running)
             {
                 await ParseTasks(cacheTask);
 
@@ -231,7 +231,7 @@ namespace ACL.flow
                 // 维护对话历史
                 messages.Add(new UserChatMessage(userInput));
 
-                while (true)
+                while (running)
                 {
                     chatCts = new CancellationTokenSource(60000000);
                     try
@@ -328,6 +328,15 @@ namespace ACL.flow
             {
                 GlobalLogger.Debug(e.GetType().Name + ":" + e.Message);
             }
+        }
+
+        public void Stop()
+        {
+            running = false;
+            Cancel();
+            messages.Clear();
+            messages = null;
+            channel = null;
         }
 
         public async void OnMcpToolsChanged()

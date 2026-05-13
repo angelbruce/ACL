@@ -10,7 +10,7 @@ namespace ACL.business.flow
     {
         private long flowId;
         private Channel<string> output;
-        private FlowRuntimeCore? flowRuntime;
+        private FlowExecutor executor;
 
         public long FlowId { get { return flowId; } }
 
@@ -22,28 +22,26 @@ namespace ACL.business.flow
 
         public void Configure()
         {
-            if (flowRuntime != null)
+            if (executor != null)
             {
-                flowRuntime.Stop();
+                executor.Stop();
                 return;
             }
 
-            var store = new DataStore();
-            var flowBody = store.GetFlowBody(flowId);
-            var flow = new Flow(flowBody);
-            var flowActionGraph = flow.Configure();
-            flowRuntime = new FlowRuntimeCore(flowActionGraph);
-            flowRuntime.Configure(output);
+            executor = new FlowExecutor(FlowId, output);
         }
 
         public void Start()
         {
-            flowRuntime?.Start();
+            if (executor.CanRun())
+            {
+                executor?.Start();
+            }
         }
 
         public void Stop()
         {
-            flowRuntime?.Stop();
+            executor?.Stop();
         }
     }
 }
