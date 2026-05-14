@@ -1,4 +1,5 @@
 using ACL.business;
+using ACL.business.llm;
 using ACL.business.log;
 using ACL.business.mcp;
 using ACL.business.project;
@@ -40,12 +41,15 @@ namespace ACL
             this.tabProject.Controls.Add(projectDataList);
             this.tabAgent.Controls.Add(agentDataList);
             splitContainer2.Panel1.Controls.Add(flowDataList);
-            flowDataList.PanelContainer = splitContainer2.Panel2;
+            flowDataList.PanelContainer = panelFlowInfo;
+            flowDataList.PanelOutput = pnlOutput;
 
             this.Load += OnFormLoaded;
 
             this.FormClosed += OnMainFormClosed;
             this.Shown += OnShown;
+
+            ShowLLMModels();
         }
 
         private void OnShown(object? sender, EventArgs e)
@@ -72,8 +76,6 @@ namespace ACL
             {
                 await Context.Instance.InitializeSession();
             });
-
-            
         }
 
         private void LoadLast()
@@ -97,6 +99,23 @@ namespace ACL
                     {
                         tsbAgent.Text = tag.Name;
                         Context.Instance.CurrentAgent = tag;
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(info.LLM))
+            {
+                foreach (ToolStripItem item in tsdModels.DropDownItems)
+                {
+                    if (item == null) continue;
+
+                    var tag = item.Tag as LLMModelInfo;
+                    if (tag == null) continue;
+
+                    if (tag.Name.ToString().Equals(info.LLM))
+                    {
+                        tsdModels.Text = tag.Name;
+                        Context.Instance.CurrentModel = tag;
                     }
                 }
             }
@@ -167,6 +186,42 @@ namespace ACL
             tsbAgent.Text = agentName;
             var data = e.ClickedItem.Tag as AgentInfo;
             Context.Instance.CurrentAgent = data;
+        }
+
+        private void tsbModel_Click(object sender, EventArgs e)
+        {
+            var model = new ucModels();
+            model.FormClosed += OnRefershModels;
+            model.ShowDialog();
+        }
+
+        private void ShowLLMModels()
+        {
+            tsdModels.DropDownItems.Clear();
+            var factory = new LLMModelFactory();
+            var models = factory.GetModelsAsync().Result;
+            foreach (var model in models)
+            {
+                var item = tsdModels.DropDownItems.Add(model.Name);
+                item.ToolTipText = string.IsNullOrEmpty(model.Description) ? model.Name : model.Description;
+                item.Tag = model;
+                item.Click += (s, e) =>
+                {
+                    tsdModels.Text = model.Name;
+                    Context.Instance.CurrentModel = model;
+                };
+
+                if (!string.IsNullOrEmpty(model.IsDefault) && model.IsDefault.Equals("1"))
+                {
+                    tsdModels.Text = model.Name;
+                    Context.Instance.CurrentModel = model;
+                }
+            }
+        }
+
+        private void OnRefershModels(object? sender, FormClosedEventArgs e)
+        {
+            ShowLLMModels();
         }
     }
 }

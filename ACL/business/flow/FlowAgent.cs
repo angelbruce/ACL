@@ -10,14 +10,16 @@ namespace ACL.business.flow
     {
         private long flowId;
         private Channel<string> output;
+        private Channel<string> input;
         private FlowExecutor executor;
 
         public long FlowId { get { return flowId; } }
 
-        public FlowAgent(long flowId, Channel<string> output)
+        public FlowAgent(long flowId, Channel<string> output, Channel<string> input)
         {
             this.flowId = flowId;
             this.output = output;
+            this.input = input;
         }
 
         public void Configure()
@@ -28,7 +30,7 @@ namespace ACL.business.flow
                 return;
             }
 
-            executor = new FlowExecutor(FlowId, output);
+            executor = new FlowExecutor(FlowId, output, input);
         }
 
         public void Start()

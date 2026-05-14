@@ -22,8 +22,8 @@ namespace ACL.business.flow
 
 
         public async Task<FlowRuntimeNodeAgent?> ConfigureAsync(Channel<string> output,
-            FlowRuntimeNode current,
-            FlowRuntimeNode next
+            FlowRuntimeNode? current,
+            FlowRuntimeNode? next
             )
         {
             var fromAgent = FetchOrInitAgent(current);
@@ -46,6 +46,7 @@ namespace ACL.business.flow
             return null;
         }
 
+
         private void Release(FlowRuntimeNodeAgent node)
         {
             if (node == null) return;
@@ -67,7 +68,7 @@ namespace ACL.business.flow
 
         }
 
-        private FlowRuntimeNodeAgent? FetchOrInitAgent(FlowRuntimeNode node)
+        private FlowRuntimeNodeAgent? FetchOrInitAgent(FlowRuntimeNode? node)
         {
             if (node == null) return null;
 

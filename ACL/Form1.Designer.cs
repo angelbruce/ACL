@@ -35,6 +35,7 @@
             tsbMcpServers = new ToolStripButton();
             toolStripSeparator1 = new ToolStripSeparator();
             statusStrip1 = new StatusStrip();
+            tsdModels = new ToolStripDropDownButton();
             txtModel = new ToolStripStatusLabel();
             toolStripStatusLabel1 = new ToolStripStatusLabel();
             tsbAgent = new ToolStripDropDownButton();
@@ -59,6 +60,11 @@
             tabFlow = new TabPage();
             splitContainer2 = new SplitContainer();
             imageList1 = new ImageList(components);
+            tabControl1 = new TabControl();
+            tabPage3 = new TabPage();
+            tabPage4 = new TabPage();
+            panelFlowInfo = new Panel();
+            pnlOutput = new Panel();
             toolStrip1.SuspendLayout();
             statusStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
@@ -73,7 +79,11 @@
             tabPlan.SuspendLayout();
             tabFlow.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer2).BeginInit();
+            splitContainer2.Panel2.SuspendLayout();
             splitContainer2.SuspendLayout();
+            tabControl1.SuspendLayout();
+            tabPage3.SuspendLayout();
+            tabPage4.SuspendLayout();
             SuspendLayout();
             // 
             // toolStrip1
@@ -93,6 +103,7 @@
             tsbModel.Name = "tsbModel";
             tsbModel.Size = new Size(36, 22);
             tsbModel.Text = "模型";
+            tsbModel.Click += tsbModel_Click;
             // 
             // tsbMcpServers
             // 
@@ -110,18 +121,27 @@
             // 
             // statusStrip1
             // 
-            statusStrip1.Items.AddRange(new ToolStripItem[] { txtModel, toolStripStatusLabel1, tsbAgent, toolStripStatusLabel2, cmbUsage, lblSession, lblProject });
+            statusStrip1.Items.AddRange(new ToolStripItem[] { tsdModels, txtModel, toolStripStatusLabel1, tsbAgent, toolStripStatusLabel2, cmbUsage, lblSession, lblProject });
             statusStrip1.Location = new Point(0, 631);
             statusStrip1.Name = "statusStrip1";
             statusStrip1.Size = new Size(918, 23);
             statusStrip1.TabIndex = 2;
             statusStrip1.Text = "statusStrip1";
             // 
+            // tsdModels
+            // 
+            tsdModels.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            tsdModels.Image = (Image)resources.GetObject("tsdModels.Image");
+            tsdModels.ImageTransparentColor = Color.Magenta;
+            tsdModels.Name = "tsdModels";
+            tsdModels.Size = new Size(13, 21);
+            // 
             // txtModel
             // 
             txtModel.Name = "txtModel";
             txtModel.Size = new Size(45, 18);
             txtModel.Text = "model";
+            txtModel.Visible = false;
             // 
             // toolStripStatusLabel1
             // 
@@ -214,7 +234,7 @@
             tabProject.Location = new Point(4, 26);
             tabProject.Name = "tabProject";
             tabProject.Padding = new Padding(3);
-            tabProject.Size = new Size(259, 331);
+            tabProject.Size = new Size(259, 576);
             tabProject.TabIndex = 2;
             tabProject.Text = "项目";
             tabProject.UseVisualStyleBackColor = true;
@@ -225,7 +245,7 @@
             tabMcp.Location = new Point(4, 26);
             tabMcp.Name = "tabMcp";
             tabMcp.Padding = new Padding(3);
-            tabMcp.Size = new Size(259, 331);
+            tabMcp.Size = new Size(259, 576);
             tabMcp.TabIndex = 1;
             tabMcp.Text = "MCP";
             tabMcp.UseVisualStyleBackColor = true;
@@ -235,7 +255,7 @@
             tvMcpTools.Dock = DockStyle.Fill;
             tvMcpTools.Location = new Point(3, 3);
             tvMcpTools.Name = "tvMcpTools";
-            tvMcpTools.Size = new Size(253, 325);
+            tvMcpTools.Size = new Size(253, 570);
             tvMcpTools.TabIndex = 0;
             // 
             // tabAgent
@@ -243,7 +263,7 @@
             tabAgent.Location = new Point(4, 26);
             tabAgent.Name = "tabAgent";
             tabAgent.Padding = new Padding(3);
-            tabAgent.Size = new Size(259, 331);
+            tabAgent.Size = new Size(259, 576);
             tabAgent.TabIndex = 3;
             tabAgent.Text = "Agent";
             tabAgent.UseVisualStyleBackColor = true;
@@ -343,6 +363,10 @@
             splitContainer2.FixedPanel = FixedPanel.Panel1;
             splitContainer2.Location = new Point(3, 3);
             splitContainer2.Name = "splitContainer2";
+            // 
+            // splitContainer2.Panel2
+            // 
+            splitContainer2.Panel2.Controls.Add(tabControl1);
             splitContainer2.Size = new Size(633, 570);
             splitContainer2.SplitterDistance = 255;
             splitContainer2.TabIndex = 0;
@@ -355,6 +379,56 @@
             imageList1.Images.SetKeyName(0, "png-0033.png");
             imageList1.Images.SetKeyName(1, "png-1101.png");
             // 
+            // tabControl1
+            // 
+            tabControl1.Alignment = TabAlignment.Bottom;
+            tabControl1.Controls.Add(tabPage3);
+            tabControl1.Controls.Add(tabPage4);
+            tabControl1.Dock = DockStyle.Fill;
+            tabControl1.Location = new Point(0, 0);
+            tabControl1.Name = "tabControl1";
+            tabControl1.SelectedIndex = 0;
+            tabControl1.Size = new Size(374, 570);
+            tabControl1.TabIndex = 0;
+            // 
+            // tabPage3
+            // 
+            tabPage3.Controls.Add(panelFlowInfo);
+            tabPage3.Location = new Point(4, 4);
+            tabPage3.Name = "tabPage3";
+            tabPage3.Padding = new Padding(3);
+            tabPage3.Size = new Size(366, 540);
+            tabPage3.TabIndex = 0;
+            tabPage3.Text = "流程信息";
+            tabPage3.UseVisualStyleBackColor = true;
+            // 
+            // tabPage4
+            // 
+            tabPage4.Controls.Add(pnlOutput);
+            tabPage4.Location = new Point(4, 4);
+            tabPage4.Name = "tabPage4";
+            tabPage4.Padding = new Padding(3);
+            tabPage4.Size = new Size(366, 540);
+            tabPage4.TabIndex = 1;
+            tabPage4.Text = "输出";
+            tabPage4.UseVisualStyleBackColor = true;
+            // 
+            // panelFlowInfo
+            // 
+            panelFlowInfo.Dock = DockStyle.Fill;
+            panelFlowInfo.Location = new Point(3, 3);
+            panelFlowInfo.Name = "panelFlowInfo";
+            panelFlowInfo.Size = new Size(360, 534);
+            panelFlowInfo.TabIndex = 0;
+            // 
+            // pnlOutput
+            // 
+            pnlOutput.Dock = DockStyle.Fill;
+            pnlOutput.Location = new Point(3, 3);
+            pnlOutput.Name = "pnlOutput";
+            pnlOutput.Size = new Size(360, 534);
+            pnlOutput.TabIndex = 0;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
@@ -365,7 +439,7 @@
             Controls.Add(toolStrip1);
             Name = "Form1";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "acl";
+            Text = "AGENT控制流";
             WindowState = FormWindowState.Maximized;
             toolStrip1.ResumeLayout(false);
             toolStrip1.PerformLayout();
@@ -382,8 +456,12 @@
             tabPage2.ResumeLayout(false);
             tabPlan.ResumeLayout(false);
             tabFlow.ResumeLayout(false);
+            splitContainer2.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer2).EndInit();
             splitContainer2.ResumeLayout(false);
+            tabControl1.ResumeLayout(false);
+            tabPage3.ResumeLayout(false);
+            tabPage4.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
         }
@@ -422,5 +500,11 @@
         private ToolStripStatusLabel lblSession;
         private ToolStripStatusLabel toolStripStatusLabel2;
         private ToolStripStatusLabel lblProject;
+        private ToolStripDropDownButton tsdModels;
+        private TabControl tabControl1;
+        private TabPage tabPage3;
+        private TabPage tabPage4;
+        private Panel panelFlowInfo;
+        private Panel pnlOutput;
     }
 }

@@ -15,12 +15,14 @@ namespace ACL.business.flow
         private FlowBody? flowBody;
         private FlowRuntimeBody? runtimeBody;
         private Channel<string> output;
+        private Channel<string> input;
 
-        public FlowExecutor(long flowId, Channel<string> output)
+        public FlowExecutor(long flowId, Channel<string> output, Channel<string> input)
         {
             dataStore = new DataStore();
             this.flowId = flowId;
             this.output = output;
+            this.input = input;
         }
 
         public void Start()
@@ -31,7 +33,7 @@ namespace ACL.business.flow
             StartInternal();
         }
 
-        private void StartInternal()
+        private async void StartInternal()
         {
             flowBody = dataStore.GetFlowBody(flowId);
             var config = flowBody.Config;
@@ -50,6 +52,14 @@ namespace ACL.business.flow
             {
                 StopInternal(runtime);
                 return;
+            }
+
+            if (agentRuntime == null) return;
+
+            foreach (var node in runningNodes)
+            {
+                var runtimeAgent = await agentRuntime.ConfigureAsync(output, null, node);
+                AssignRuntimeTaskOver(runtimeAgent);
             }
         }
 
@@ -144,7 +154,7 @@ namespace ACL.business.flow
             if (runtime == null) throw new InvalidFlowConfigException();
             if (runtimeBody == null) throw new InvalidFlowConfigException();
             if (agentRuntime == null) throw new InvalidFlowConfigException();
-            
+
 
             //下一步的上一步是否全部完成
             //获取配置中的所有上一步
@@ -243,7 +253,7 @@ namespace ACL.business.flow
         {
             if (runtimeNodeAgent == null) return;
             runtimeNodeAgent.AgentTaskFninshed += OnAgentTaskFninshed;
-            runtimeNodeAgent.Start(output);
+            runtimeNodeAgent.Start(output, input);
         }
 
 
@@ -266,7 +276,6 @@ namespace ACL.business.flow
 
             dataStore.Save(runtimeBody.Runtime);
             runtimeBody.Nodes = CreateNodes(runtimeBody.Runtime);
-            dataStore.Save(runtimeBody.Nodes);
 
             return runtimeBody;
         }
@@ -337,7 +346,7 @@ namespace ACL.business.flow
 
         private FlowRuntime? GetFlowRuntime()
         {
-            return dataStore.Fetch<FlowRuntime>(t => t.Id == flowId && !t.IsOver);
+            return dataStore.Fetch<FlowRuntime>(t => t.Id == flowId && t.IsOver == false);
         }
     }
 }

@@ -42,10 +42,11 @@ namespace ACL.business.flow
         /// <summary>
         /// 启动AGENT
         /// </summary>
-        /// <param name="channel"></param>
-        public void Start(Channel<string> channel)
+        /// <param name="output"></param>
+        public void Start(Channel<string> output, Channel<string> input)
         {
-            Agent?.Serve(channel);
+            Agent?.Serve(output, input);
+            Agent?.Chat(AgentTask?.Ask ?? "开始执行任务。");
         }
 
         /// <summary>

@@ -23,6 +23,9 @@ namespace ACL.business.project
 
         [AntElement("agent_id")]
         public string AgentId { get; set; } = string.Empty;
+
+        [AntElement("llm")]
+        public string LLM { get; set; } = string.Empty;
     }
 
     public class LastUsedRecorder

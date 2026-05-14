@@ -12,19 +12,24 @@ namespace ACL.business.llm
         {
         }
 
+        public async Task<bool> SaveModelsAsync(List<LLMModelInfo> llms)
+        {
+            var items = llms.Select(x => x as IAntItem).ToList();
+            AntContext.Instance.SetItems(typeof(LLMAnt), LLM_TAG, items);
+            return true;
+        }
+
         public async Task<List<LLMModelInfo>> GetModelsAsync()
         {
             var datas = AntContext.Instance.GetItems(LLM_TAG);
             var list = new List<LLMModelInfo>();
             if (datas != null && datas.Count > 0)
             {
+                foreach (var data in datas)
                 {
-                    foreach (var data in datas)
+                    if (data is LLMModelInfo llm)
                     {
-                        if (data is LLMModelInfo llm)
-                        {
-                            list.Add(llm);
-                        }
+                        list.Add(llm);
                     }
                 }
             }

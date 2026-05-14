@@ -11,6 +11,15 @@
 				version="gemma4"
 				description="这个是破解版的gemma4-26b量化版本"
 				></llm>
+			
+			<llm name="spark-x"
+				 accessUrl="https://spark-api-open.xf-yun.com/x2/"
+				apiKey ="mqxtQOGeSngYkxudgGXI:ylPqJQbNFavCrDYbCTLr"
+				default="0"
+				version="spark-x2"
+				description="xfyun spark-x2"
+				 >
+			</llm>
 		</llmCollection>
 	</llm-config>
 
@@ -21,7 +30,7 @@
 			<prompt usage="Code" type="System" path="prompt/coding-3.txt"></prompt>
 		</prompts>
 	</promptAnt>
-	
+
 	<!--配置STDIO-MCP工具服务提供者，后续要全部替换掉成为LOCAL的，这些外部的有性能问题-->
 	<stdio-mcp-config name="stdio-mcp" type="ACL.business.mcp.dialect.StdioMcpAnt,ACL">
 		<stdio-mcp-collection>
@@ -52,7 +61,7 @@
 			</stdio-mcp>-->
 		</stdio-mcp-collection>
 	</stdio-mcp-config>
-	
+
 	<!--默认项目设置，定义项目位置-->
 	<project name="project-config" type="ACL.business.project.ProjectAnt,ACL">
 		<projectCollection>
@@ -63,8 +72,8 @@
 	<!--数据库驱动设置-->
 	<database-ant name="databaseDriver" type="ABL.Data.DbDriverConfigAnt,ABL">
 		<databaseCollection>
-			<database name="default" 
-					  provider="ACL.dao.SQLiteDbDriver,ACL" 
+			<database name="default"
+					  provider="ACL.dao.SQLiteDbDriver,ACL"
 					  connectionString="Data Source=./acl.db;Mode=ReadWrite;Foreign Keys=True;Default Timeout=20;"></database>
 		</databaseCollection>
 	</database-ant>

@@ -30,9 +30,9 @@ namespace ACL.business
 
         private McpSession mcpSession;
 
-        private IAgent agent;
+        private SessionAgent agent;
         private AgentInfo currentAgent;
-        public IAgent Agent { get { return agent; } }
+        public SessionAgent Agent { get { return agent; } }
 
         public event DgtFileChanged FileChanged;
 

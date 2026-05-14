@@ -17,7 +17,6 @@ namespace ACL.business.agent
         /// </summary>
         /// <param name="channel">the output channel</param>
         /// <returns></returns>
-        public Task Serve(Channel<string> channel);
         public Task<bool> Chat(string data);
         public void Cancel();
     }

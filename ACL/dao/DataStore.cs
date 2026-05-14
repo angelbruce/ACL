@@ -84,10 +84,11 @@ namespace ACL.dao
 
         public FlowRuntimeBody? GetFlowRuntimeBody(long id)
         {
-            var flowRuntime = Fetch<FlowRuntime>(x=>x.Id == 0 && x.IsOver == false);
+            var flowRuntime = Fetch<FlowRuntime>(x => x.FlowId == id && x.IsOver == false);
             if (flowRuntime == null) return null;
 
-            var nodes = Fill<FlowRuntimeNode>(t => t.FlowRuntimeId == id);
+            var runtimeId = flowRuntime.Id;
+            var nodes = Fill<FlowRuntimeNode>(t => t.FlowRuntimeId == runtimeId && t.FlowId == id);
 
             var body = new FlowRuntimeBody
             {

@@ -151,6 +151,7 @@ namespace ACL.business.flow
 
                 //没有执行者
                 if (aid == null) throw new InvalidFlowConfigException();
+                if (aid < 0) continue;
                 var agentId = aid.Value + "";
 
                 if (!agentMap.ContainsKey(agentId)) throw new InvalidFlowConfigException();
@@ -214,16 +215,23 @@ namespace ACL.business.flow
 
             foreach (var edge in graph.Edges)
             {
-                if (edge == null || edge.To == null || edge.To.Data == null) continue;
+                if (edge == null) continue;
 
-                var eid = edge.To.Data.Id;
-                if (nextIds.Contains(eid))
+                if (edge.From != null && edge.From.Data != null)
                 {
-                    if (edge.From != null)
+                    if (nextIds.Contains(edge.From.Data.Id))
                     {
                         edge.From.IsHead = true;
                         graph.Heads.Add(edge.From);
-                        break;
+                    }
+                }
+
+                if (edge.To != null && edge.To.Data != null)
+                {
+                    if (nextIds.Contains(edge.To.Data.Id))
+                    {
+                        edge.To.IsHead = true;
+                        graph.Heads.Add(edge.To);
                     }
                 }
             }

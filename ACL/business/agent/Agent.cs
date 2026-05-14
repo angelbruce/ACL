@@ -17,9 +17,9 @@ namespace ACL.flow
     class Agent : IAgent
     {
         private CancellationTokenSource chatCts = new CancellationTokenSource(10);
-        private Channel<string> channel = Channel.CreateBounded<string>(10);
-        private Channel<string>? output = null;
-        private ChatClient? chatClient = null;
+        private Channel<string>? channel;
+        private Channel<string>? output;
+        private ChatClient? chatClient;
         private ChatCompletionOptions chatOptions;
         private List<ChatMessage> messages;
         private AgentBody agent;
@@ -118,13 +118,14 @@ namespace ACL.flow
 
         private bool running = false;
 
-        public async Task Serve(Channel<string> channel)
+        public async Task Serve(Channel<string> output,Channel<string> input)
         {
             if (running) return;
             running = true;
             try
             {
-                output = channel;
+                this.output = output;
+                this.channel = input;
                 await RunOrchestrator();
             }
             catch (Exception ex)

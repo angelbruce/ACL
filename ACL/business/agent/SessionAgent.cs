@@ -1,17 +1,13 @@
-﻿using ABL.Object;
-using ACL.business;
+﻿using ACL.business;
 using ACL.business.agent;
 using ACL.business.content;
-using ACL.business.llm;
 using ACL.business.log;
 using ACL.business.mcp;
 using ACL.business.project;
 using ACL.business.session;
 using ACL.dao;
-using Newtonsoft.Json;
 using OpenAI.Chat;
 using System.ClientModel;
-using System.Configuration;
 using System.Text;
 using System.Threading.Channels;
 
@@ -249,6 +245,9 @@ namespace ACL.flow
                     {
                         using (chatCts)
                         {
+                            //var data = await chatClient?.CompleteChatAsync(messages, chatOptions, chatCts.Token);
+                            //Console.WriteLine($"成功: {data.Value.Content.ToString()}");
+
                             // 使用流式输出（打字机效果）
                             var streamingResult = chatClient?.CompleteChatStreamingAsync(messages, chatOptions, chatCts.Token);
                             if (streamingResult == null)
