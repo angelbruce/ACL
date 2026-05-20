@@ -1,5 +1,7 @@
 ﻿using ACL.business;
+using ACL.business.mcp.local;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -19,7 +21,21 @@ namespace ACL.uc
 
         private void TaskTree_Load(object? sender, EventArgs e)
         {
-            InitTaskListeners();
+            //InitTaskListeners();
+            TodoStore.Instance.OnDeleted += (s) => RefreshTodoItems();
+            TodoStore.Instance.OnUpdated += (s) => RefreshTodoItems();
+            TodoStore.Instance.OnCreated += (s) => RefreshTodoItems();
+            TodoStore.Instance.Inprogressed += (s) => RefreshTodoItems();
+            TodoStore.Instance.Completed += (s) => RefreshTodoItems();
+        }
+
+        private void RefreshTodoItems()
+        {
+            var list = TodoStore.Instance.Gets().ToList();
+            this.dgvTasks.Invoke(() =>
+            {
+                this.dgvTasks.DataSource = list;
+            });
         }
 
         private void InitTaskListeners()

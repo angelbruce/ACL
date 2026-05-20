@@ -8,7 +8,8 @@ using YamlDotNet.Core.Tokens;
 namespace ACL.business.mcp.local
 {
 
-    public delegate void TodoCompletedHandler(TodoItem item);
+    public delegate void DgtTodoCompleted(TodoItem item);
+    public delegate void DgtTodoInprogress(TodoItem item);
 
     public enum TodoStatus
     {
@@ -20,21 +21,41 @@ namespace ACL.business.mcp.local
 
     public class TodoItem : IDable
     {
+        [Description("标题")]
         public string Title { get; set; } = string.Empty;
+
+        [Description("任务说明")]
         public string? Description { get; set; }
+
+        [Description("任务状态")]
         public TodoStatus Status { get; set; } = TodoStatus.pending; // pending, in_progress, completed, cancelled
+
+        [Description("优先级")]
         public TodoPriority Priority { get; set; } = TodoPriority.medium;
+
+        [Description("标签")]
         public string? Tags { get; set; }
+
+        [Description("流程编号")]
         public string? FlowId { get; set; }
+
+        [Description("运行时流程节点编号")]
         public string? NodeId { get; set; }
+
+        [Description("任务创建时间")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Description("任务更新时间")]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        [Description("任务完成时间")]
         public DateTime? CompletedAt { get; set; }
     }
 
     public class TodoStore : BasicCurd<TodoItem>
     {
-        public event TodoCompletedHandler? CompletedHandler;
+        public event DgtTodoCompleted? Completed;
+        public event DgtTodoInprogress? Inprogressed;
 
         private static TodoStore instance = new TodoStore();
         public static TodoStore Instance { get { return instance; } }
@@ -80,7 +101,11 @@ namespace ACL.business.mcp.local
 
                 if (item.Status == TodoStatus.completed)
                 {
-                    CompletedHandler?.Invoke(item);
+                    Completed?.Invoke(item);
+                }
+                else if (item.Status == TodoStatus.inProgress)
+                {
+                    Inprogressed?.Invoke(item);
                 }
             });
         }

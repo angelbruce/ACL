@@ -124,7 +124,18 @@ namespace ACL.business
 
         public async Task<MCPToolCallResult> CallToolAsync(string fnName, BinaryData parameters)
         {
-            return await mcpSession.CallToolAsync(fnName, parameters);
+            try
+            {
+                return await mcpSession.CallToolAsync(fnName, parameters);
+            }
+            catch (Exception e)
+            {
+                return new MCPToolCallResult
+                {
+                    Success = false,
+                    Error = e.Message
+                };
+            }
         }
 
         private void StoreOutput(TaskInfo? task)
