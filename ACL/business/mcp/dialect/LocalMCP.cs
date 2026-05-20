@@ -1,4 +1,5 @@
 ﻿using ABL;
+using ABL.Enums;
 using ABL.Object;
 using ACL.business.mcp.local;
 using ACL.meta;
@@ -48,8 +49,26 @@ namespace ACL.business.mcp.dialect
                 if (json.Contains(name))
                 {
                     var jval = json.Get(name).GetJson();
-                    var value = JsonSerializer.Deserialize(json: jval, returnType: parameter.ParameterType);
-                    if (value != null) objs[i] = value;
+                    if (parameter.ParameterType.IsEnum)
+                    {
+                        var v = jval.Replace("\"", "");
+                        var value = v.ParseTo(parameter.ParameterType);
+                        if (value != null) objs[i] = value;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var value = JsonSerializer.Deserialize(json: jval, returnType: parameter.ParameterType);
+                            if (value != null) objs[i] = value;
+                        }
+                        catch (Exception ex)
+                        {
+                            var value = jval.ParseTo(parameter.ParameterType);
+                            if (value != null) objs[i] = value;
+                        }
+
+                    }
                 }
             }
 

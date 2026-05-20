@@ -3,9 +3,11 @@ using ACL.business.agent;
 using ACL.business.content;
 using ACL.business.log;
 using ACL.business.mcp;
+using ACL.business.mcp.local;
 using ACL.business.project;
 using ACL.business.session;
 using ACL.dao;
+using Newtonsoft.Json;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.Text;
@@ -208,6 +210,7 @@ namespace ACL.flow
             return false;
         }
 
+        static bool SESSION_FINISHED = true;
         public async Task RunOrchestrator()
         {
             // 获取工具列表
@@ -223,7 +226,7 @@ namespace ACL.flow
             while (true)
             {
                 await ParseTasks(cacheTask);
-
+                await TodoTasks();
                 string userInput = string.Empty;
                 if (channel != null)
                 {
@@ -243,87 +246,79 @@ namespace ACL.flow
                     chatCts = new CancellationTokenSource(60000000);
                     try
                     {
-                        using (chatCts)
+                        // 使用流式输出（打字机效果）
+                        var streamingResult = chatClient?.CompleteChatStreamingAsync(messages, chatOptions, chatCts.Token);
+                        if (streamingResult == null)
                         {
-                            //var data = await chatClient?.CompleteChatAsync(messages, chatOptions, chatCts.Token);
-                            //Console.WriteLine($"成功: {data.Value.Content.ToString()}");
-
-                            // 使用流式输出（打字机效果）
-                            var streamingResult = chatClient?.CompleteChatStreamingAsync(messages, chatOptions, chatCts.Token);
-                            if (streamingResult == null)
-                            {
-                                GlobalLogger.Error("初始化尚未完成.");
-                                break;
-                            }
-
-                            string? fnName = null;
-                            //var fnParams = new StringBuilder();
-                            using var fnArgs = new MemoryStream();
-                            //await foreach (var update in streamingResult.ConfigureAwait(false))
-                            await foreach (var update in streamingResult)
-                            {
-                                //调用工具
-                                if (update.ToolCallUpdates.Count > 0)
-                                {
-                                    var toolCall = update.ToolCallUpdates[0];
-                                    if (toolCall.FunctionName != null)
-                                    {
-                                        fnName = toolCall.FunctionName;
-                                    }
-
-                                    if (toolCall.FunctionArgumentsUpdate != null)
-                                    {
-                                        var bytes = toolCall.FunctionArgumentsUpdate.ToArray();
-                                        fnArgs.Write(bytes, 0, bytes.Length);
-                                        fnArgs.Flush();
-                                        //fnParams.Append(toolCall.FunctionArgumentsUpdate);
-                                    }
-                                }
-
-                                //直接输出了
-                                if (update.ContentUpdate.Count > 0)
-                                {
-                                    var text = update.ContentUpdate[0].Text;
-                                    cacheTask.Append(text);
-                                    output?.Writer.TryWrite(text);
-                                }
-                            }
-
-                            if (fnName != null)
-                            {
-                                //var args = fnParams.ToString();
-                                var parameters = BinaryData.FromBytes(fnArgs.ToArray());
-                                GlobalLogger.Debug($"[Tool Call] {fnName} {parameters.ToString()}");
-
-
-                                messages.Add(new AssistantChatMessage(new List<ChatToolCall> { ChatToolCall.CreateFunctionToolCall(fnName, fnName, parameters) }));
-                                messages.Add(new ToolChatMessage(fnName, $"工具{fnName}正在调用中，稍后会给你最终调用结果，你先继续。"));
-
-                                new Thread(async () =>
-                                {
-                                    await Task.Run(async () =>
-                                    {
-                                        var toolResult = await Context.Instance.CallToolAsync(fnName, parameters);
-                                        //messages.Add(new AssistantChatMessage(new List<ChatToolCall> { ChatToolCall.CreateFunctionToolCall(fnName, fnName, parameters) }));
-                                        GlobalLogger.Debug($"[Tool Result] {toolResult.Content}");
-                                        if (toolResult.Success)
-                                        {
-                                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}调用完成，结果为：{toolResult.Content}"));
-                                            messages.Add(new UserChatMessage($"请检查一下这个工具{fnName}的输出结果是否存在问题，若存在，请调整调用工具或参数，重新调用获取结果，如果不存在，请按照此次函数调用结果返回所需输出。"));
-                                        }
-                                    });
-                                }).Start();
-
-
-
-
-                                continue;
-                            }
-
-                            output?.Writer.TryWrite(Environment.NewLine);
-                            Console.WriteLine();
+                            GlobalLogger.Error("初始化尚未完成.");
                             break;
                         }
+
+                        string? fnName = null;
+                        using var fnArgs = new MemoryStream();
+                        await foreach (var update in streamingResult)
+                        {
+                            //调用工具
+                            if (update.ToolCallUpdates.Count > 0)
+                            {
+                                var toolCall = update.ToolCallUpdates[0];
+                                if (toolCall.FunctionName != null)
+                                {
+                                    fnName = toolCall.FunctionName;
+                                }
+
+                                if (toolCall.FunctionArgumentsUpdate != null)
+                                {
+                                    var bytes = toolCall.FunctionArgumentsUpdate.ToArray();
+                                    fnArgs.Write(bytes, 0, bytes.Length);
+                                    fnArgs.Flush();
+                                }
+                            }
+
+                            //直接输出了
+                            if (update.ContentUpdate.Count > 0)
+                            {
+                                var text = update.ContentUpdate[0].Text;
+                                cacheTask.Append(text);
+                                if (text.Contains("ALL_MISIION_FINISHED"))
+                                {
+                                    SESSION_FINISHED = true;
+                                    break;
+                                }
+                                output?.Writer.TryWrite(text);
+                            }
+                        }
+
+                        if (fnName != null)
+                        {
+                            //var args = fnParams.ToString();
+                            var parameters = BinaryData.FromBytes(fnArgs.ToArray());
+                            GlobalLogger.Debug($"[Tool Call] {fnName} {parameters.ToString()}");
+
+                            messages.Add(new AssistantChatMessage(new List<ChatToolCall> { ChatToolCall.CreateFunctionToolCall(fnName, fnName, parameters) }));
+                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}正在调用中，稍后会给你最终调用结果，你先继续。"));
+
+                            new Thread(async () =>
+                            {
+                                await Task.Run(async () =>
+                                {
+                                    var toolResult = await Context.Instance.CallToolAsync(fnName, parameters);
+                                    GlobalLogger.Debug($"[Tool Result] {toolResult.Content}");
+                                    if (toolResult.Success)
+                                    {
+                                        messages.Add(new ToolChatMessage(fnName, $"工具{fnName}调用完成，结果为：{toolResult.Content}"));
+                                        messages.Add(new UserChatMessage($"请检查一下这个工具{fnName}的输出结果是否存在问题，若存在，请调整调用工具或参数，重新调用获取结果，如果不存在，请按照此次函数调用结果返回所需输出。"));
+                                        await channel.Writer.WriteAsync($"工具{fnName}调用完成，结果为：{toolResult.Content}。请检查一下这个工具{fnName}的输出结果是否存在问题，若存在，请修复。");
+                                    }
+                                });
+                            }).Start();
+
+                            continue;
+                        }
+
+                        output?.Writer.TryWrite(Environment.NewLine);
+                        Console.WriteLine();
+                        break;
                     }
                     catch (OperationCanceledException ex)
                     {
@@ -434,7 +429,7 @@ namespace ACL.flow
             }
 
             messages.Add(new SystemChatMessage("你可以通过阅读项目下的文件了解本项目的相关信息。"));
-            
+
             if (session != null)
             {
                 messages.Add(new UserChatMessage(session.Description));
@@ -474,6 +469,43 @@ namespace ACL.flow
             step.Perform();
         }
 
-    }
 
+        private async Task<bool> TodoTasks()
+        {
+            if (channel == null) return false;
+
+
+            var indatas = TodoTool.TodoList(TodoStatus.inProgress, null, null);
+            var datas = TodoTool.TodoList(TodoStatus.pending, null, null);
+            if (indatas.Length > 0)
+            {
+                var sbd = new StringBuilder();
+                sbd.AppendLine("你有以下任务处于进行中的状态：");
+                sbd.AppendLine(JsonConvert.SerializeObject(indatas));
+                sbd.AppendLine("请继续执行进行中`inProgress`的TODO任务，当该任务执行完成后，可以调用`__LOCAL__MarkTodoComplete，传入`id`，将已经完成的任务置为完成状态；否则，继续执行该任务。");
+                await channel.Writer.WriteAsync(sbd.ToString());
+            }
+
+            if (datas.Length > 0)
+            {
+                var sbd = new StringBuilder();
+                sbd.AppendLine("你有以下任务处于`pending`状态：");
+                sbd.AppendLine(JsonConvert.SerializeObject(datas));
+                sbd.AppendLine("请选一个状态为`pending`的TODO的高优先级任务，调用__LOCAL__MarkTodoInProgress，传入`id`，将其标记为进行中，以开始执行该任务。");
+                await channel.Writer.WriteAsync(sbd.ToString());
+            }
+
+            if (!SESSION_FINISHED && datas.Length == 0)
+            {
+                var sbd = new StringBuilder();
+                sbd.AppendLine("你必须立刻执行任务分解，并采用__LOCAL_TodoCreate创建所有任务项，如果所有任务已经完成，则不用分解任务，并执行`ALL_MISIION_FINISHED`结束。");
+                await channel.Writer.WriteAsync(sbd.ToString());
+            }
+
+            SESSION_FINISHED = false;
+
+            return true;
+        }
+
+    }
 }

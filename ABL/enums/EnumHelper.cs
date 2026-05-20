@@ -130,7 +130,8 @@ namespace ABL.Enums
             {
                 if (pair.Value == desc)
                 {
-                    object o = pair.Key; return (T)o;
+                    object o = pair.Key; 
+                    return (T)o;
                 }
             }
             throw new Exception(string.Format("没有为枚举类型{0}提供注释{1}", type.FullName, desc));
@@ -170,6 +171,7 @@ namespace ABL.Enums
             } 
             throw new Exception(string.Format("没有为枚举类型{0}提供注释{1}", type.FullName, desc));
         }
+
 
     }
 }

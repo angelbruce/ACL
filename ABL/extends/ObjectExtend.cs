@@ -390,5 +390,42 @@ namespace ABL
 
             }
         }
+
+        /// <summary>
+        /// copy one data 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj"></param>
+        public static T Copy<T>(this T obj)
+           where T : class, new()
+        {
+            var target = new T();
+            foreach (var prop in obj.GetType().GetProperties())
+            {
+                if (prop.IsSpecialName) continue;
+                if (!prop.CanWrite) continue;
+                var val = prop.GetValue(obj);
+                if (val == null) continue;
+
+                var valType = prop.PropertyType;
+                prop.SetValue(target, val.ParseTo(valType));
+            }
+
+            return target;
+        }
+
+        public static void CopyFrom<T>(this T obj,T target) where T : class, new()
+        {
+            foreach (var prop in obj.GetType().GetProperties())
+            {
+                if (prop.IsSpecialName) continue;
+                if (!prop.CanWrite) continue;
+                var val = prop.GetValue(target);
+                if (val == null) continue;
+
+                var valType = prop.PropertyType;
+                prop.SetValue(obj, val.ParseTo(valType));
+            }
+        }
     }
 }

@@ -209,6 +209,8 @@ namespace ACL.uc
             var session = node.Tag as Session;
             if (session == null) return;
 
+            Content.Clear();
+            txtAsk.Clear();
             Context.Instance.CurrentSession = session;
             pnlAsk.Visible = true;
             pnlAsk.BringToFront();

@@ -22,7 +22,7 @@ namespace ACL.business.mcp.local
         [McpTool, Description("检查目录是否存在")]
         public static bool CheckDirExist([Required][Description("被检查的目录")] string path)
         {
-            if(path == null)
+            if (path == null)
             {
                 path = ProjectConfig.Current.Directory;
             }
@@ -39,6 +39,7 @@ namespace ACL.business.mcp.local
         {
             var projectDir = ProjectConfig.Current.Directory;
             if (!absolutePath.ToLower().StartsWith(projectDir.ToLower())) absolutePath = Path.Combine(ProjectConfig.Current.Directory, absolutePath);
+            if (!File.Exists(absolutePath)) return "";
             return File.ReadAllText(absolutePath);
         }
 
@@ -74,7 +75,13 @@ namespace ACL.business.mcp.local
             try
             {
                 var projectDir = ProjectConfig.Current.Directory;
-                if (!absolutePath.ToLower().StartsWith(projectDir.ToLower())) absolutePath = Path.Combine(ProjectConfig.Current.Directory, absolutePath);
+                if (absolutePath == null)
+                {
+                    return "错误：文件路径不能为空";
+                }
+                
+
+                if (!absolutePath.ToLower().StartsWith(projectDir.ToLower())) absolutePath = Path.Combine(ProjectConfig.Current.Directory, absolutePath.TrimStart('\\', '/'));
                 if (!File.Exists(absolutePath))
                 {
                     var dir = Path.GetDirectoryName(absolutePath);
@@ -104,10 +111,21 @@ namespace ACL.business.mcp.local
         public static async Task<List<string>> ListMyTopDirectory([Required][Description("被查询目录的绝对路径，必须传入")] string absoluteDir)
         {
             var list = new List<string>();
-            if (absoluteDir.Equals("/"))
+
+            if (string.IsNullOrEmpty(absoluteDir) || absoluteDir.Equals("/"))
             {
                 absoluteDir = ProjectConfig.Current.Directory;
             }
+            else if (absoluteDir.StartsWith("./") || absoluteDir.StartsWith(".\\"))
+            {
+                absoluteDir = ProjectConfig.Current.Directory + absoluteDir.Substring(2);
+            }
+            else if (absoluteDir == ".")
+            {
+                absoluteDir = ProjectConfig.Current.Directory;
+            }
+
+
             if (!Directory.Exists(absoluteDir))
             {
                 Console.WriteLine($"错误：指定的目录不存在：{absoluteDir}");
@@ -133,17 +151,25 @@ namespace ACL.business.mcp.local
         public static async Task<List<string>> ListAllSubDirectories([Required][Description("被查询目录的绝对路径，必须传入")] string absoluteDir)
         {
             var list = new List<string>();
+
+            if (string.IsNullOrEmpty(absoluteDir) || absoluteDir.Equals("/"))
+            {
+                absoluteDir = ProjectConfig.Current.Directory;
+            }
+            else if (absoluteDir.StartsWith("./") || absoluteDir.StartsWith(".\\"))
+            {
+                absoluteDir = ProjectConfig.Current.Directory + absoluteDir.Substring(2);
+            }
+            else if (absoluteDir == ".")
+            {
+                absoluteDir = ProjectConfig.Current.Directory;
+            }
+
             if (!Directory.Exists(absoluteDir))
             {
                 Console.WriteLine($"错误：指定的目录不存在：{absoluteDir}");
                 return [];
             }
-
-            if (absoluteDir.Equals("/"))
-            {
-                absoluteDir = ProjectConfig.Current.Directory;
-            }
-
 
             var stack = new Stack<string>();
             stack.Push(absoluteDir);
