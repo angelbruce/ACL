@@ -1,9 +1,6 @@
 ﻿using ACL.business.mcp.local;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
 using System.Text;
-using System.Threading.Channels;
 
 namespace ACL.business.agent
 {
@@ -91,7 +88,10 @@ namespace ACL.business.agent
                     {
                         return (null, null);
                     }
-
+                case StateTag.CompressSession:
+                    {
+                        break;
+                    }
             }
 
             return (tag, sbd.ToString());
@@ -108,6 +108,7 @@ namespace ACL.business.agent
         TodoUpdate,
         TodoComplete,
         TodoInprogress,
+        CompressSession,
         MissionComplete
     }
 }

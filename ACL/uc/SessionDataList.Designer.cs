@@ -83,6 +83,7 @@
             tsbCompress.Name = "tsbCompress";
             tsbCompress.Size = new Size(23, 22);
             tsbCompress.Text = "会话上下文压缩";
+            tsbCompress.Click += tsbCompress_Click;
             // 
             // panel2
             // 

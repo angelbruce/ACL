@@ -28,6 +28,7 @@ namespace ACL.flow
         public string? FnError { get; set; }
         public CancellationToken Token { get; set; }
         public Exception? Error { get; set; }
+        public bool Cancel { get; set; }
     }
 
     public class ChatMessageList : List<ChatMessage>
@@ -57,14 +58,15 @@ namespace ACL.flow
         private SessionStep step;
 
         public event DgtInitialize InitializeHook;
-        public event DgtHook OnBeforeAsk;
+        public event DgtHook OnBeforeAsking;
+        public event DgtHook OnBeforeAsked;
         public event DgtHook OnFnCalling;
         public event DgtHook OnAsyncFnCalling;
         public event DgtHook OnAsyncFnCalled;
         public event DgtHook OnAsyncFnCalledSuccess;
         public event DgtHook OnAsyncFnCalledError;
         public event DgtHook OnOutput;
-        public event DgtHook OnLLMException;
+        public event DgtHook OnCompressed;
 
         public SessionAgent(AgentBody agent)
         {
@@ -202,7 +204,7 @@ namespace ACL.flow
             //开始会话
             while (true)
             {
-                OnBeforeAsk?.Invoke(new HookEventArgs { Input = channel, Output = output, Messages = messages });
+                OnBeforeAsking?.Invoke(new HookEventArgs { Input = channel, Output = output, Messages = messages });
                 string userInput = string.Empty;
                 if (channel != null)
                 {
@@ -214,12 +216,17 @@ namespace ACL.flow
                     return;
                 }
 
+                var args = new HookEventArgs { ChatClient = chatClient, Input = channel, Output = output, Messages = messages, Text = userInput };
+                OnBeforeAsked?.Invoke(args);
+                if (args.Cancel) continue;
+
                 // 维护对话历史
                 messages.Add(new UserChatMessage(userInput));
 
                 while (true)
                 {
                     chatCts = new CancellationTokenSource(60000000);
+                    chatCts.Token.ThrowIfCancellationRequested();
                     try
                     {
                         // 使用流式输出（打字机效果）
@@ -319,7 +326,7 @@ namespace ACL.flow
                             chatClient = new ChatClient(model, new ApiKeyCredential(modelInfo.ApiKey), options);
                         }
 
-                        OnLLMException.Invoke(new HookEventArgs { ChatClient = chatClient, Input = channel, Output = output, Messages = messages, Error = e });
+                        OnCompressed.Invoke(new HookEventArgs { ChatClient = chatClient, Input = channel, Output = output, Messages = messages, Error = e });
 
                     }
                 }
@@ -365,7 +372,11 @@ namespace ACL.flow
 
         private async Task<bool> CreateMcpTools(List<MCPTool> MCPTools)
         {
-            chatOptions = new ChatCompletionOptions();
+            chatOptions = new ChatCompletionOptions()
+            {
+                AllowParallelToolCalls = false,
+            };
+
             if (MCPTools != null)
             {
                 foreach (var t in MCPTools)
@@ -418,7 +429,7 @@ namespace ACL.flow
 
             if (session != null)
             {
-                messages.Add(new UserChatMessage(session.Description));
+                messages.Add(new SystemChatMessage(session.Description));
             }
 
             if (items != null && items.Count > 0)

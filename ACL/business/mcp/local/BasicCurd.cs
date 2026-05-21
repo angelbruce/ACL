@@ -41,6 +41,7 @@ namespace ACL.business.mcp.local
 
         public T Get(string id)
         {
+            if (!datas.ContainsKey(id)) return null;
             return datas[id];
         }
 

@@ -2,58 +2,13 @@
 
 namespace ACL.business.mcp.local
 {
-
-    public delegate void DgtTodoCompleted(TodoItem item);
-    public delegate void DgtTodoInprogress(TodoItem item);
-
-    public enum TodoStatus
-    {
-        pending,
-        inProgress,
-        completed,
-        cancelled
-    }
-
-    public class TodoItem : IDable
-    {
-        [Description("标题")]
-        public string Title { get; set; } = string.Empty;
-
-        [Description("任务说明")]
-        public string? Description { get; set; }
-
-        [Description("任务状态")]
-        public TodoStatus Status { get; set; } = TodoStatus.pending; // pending, in_progress, completed, cancelled
-
-        [Description("优先级")]
-        public TodoPriority Priority { get; set; } = TodoPriority.medium;
-
-        [Description("标签")]
-        public string? Tags { get; set; }
-
-        [Description("流程编号")]
-        public string? FlowId { get; set; }
-
-        [Description("运行时流程节点编号")]
-        public string? NodeId { get; set; }
-
-        [Description("任务创建时间")]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        [Description("任务更新时间")]
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-        [Description("任务完成时间")]
-        public DateTime? CompletedAt { get; set; }
-    }
-
-    public class TodoStore : BasicCurd<TodoItem>
+    public class FlowTodoStore : BasicCurd<TodoItem>
     {
         public event DgtTodoCompleted? Completed;
         public event DgtTodoInprogress? Inprogressed;
 
-        private static TodoStore instance = new TodoStore();
-        public static TodoStore Instance { get { return instance; } }
+        private static FlowTodoStore instance = new FlowTodoStore();
+        public static FlowTodoStore Instance { get { return instance; } }
 
         public TodoItem AddTodo(TodoItem item)
         {
@@ -66,6 +21,16 @@ namespace ACL.business.mcp.local
             });
         }
 
+        public TodoItem[] GetTodoItemsByFlow(string flowId)
+        {
+            return datas.Values.Where(t => t.FlowId == flowId).ToArray();
+        }
+
+
+        public TodoItem[] GetTodoItemsByFlowNode(string flowId, string nodeId)
+        {
+            return datas.Values.Where(t => t.FlowId == flowId && t.NodeId == nodeId).ToArray();
+        }
 
         public TodoItem UpdateTodo(TodoItem item)
         {
@@ -100,6 +65,7 @@ namespace ACL.business.mcp.local
             return base.Delete(id);
         }
 
+
         public void MarkTodoStatus(string id, TodoStatus status)
         {
             var existing = Get(id);
@@ -115,26 +81,26 @@ namespace ACL.business.mcp.local
             }
             UpdateTodo(existing);
         }
-    }
 
-    public enum TodoPriority
-    {
-        [Description("低")]
-        low,
-        [Description("中")]
-        medium,
-        [Description("高")]
-        high,
-        [Description("紧急")]
-        urgent
+        public void ClearFlowNodeTodos(string flowId, string nodeId)
+        {
+            var itemsToDelete = datas.Values.Where(t => t.FlowId == flowId && t.NodeId == nodeId).ToList();
+            foreach (var item in itemsToDelete)
+            {
+                DeleteTodo(item.Id);
+            }
+        }
     }
 
     [McpServerTool]
-    public class TodoTool
+    public class FlowTodoTool
     {
-        [McpTool, Description("创建一个新的TODO任务")]
-        public static TodoItem TodoCreate([Required][Description("任务标题")] string title
-                , [Description("任务描述")] string? description
+        [McpTool, Description("[流程相关TODO工具]:为流程节点创建一个新的TODO任务，必须传入 `flowId`,`nodeId`,`description`")]
+        public static TodoItem FlowTodoCreate(
+                [Required][Description("关联的流程ID")] string flowId
+                , [Required][Description("关联的节点ID")] string nodeId
+                , [Description("任务标题")] string title
+                , [Required][Description("任务描述")] string? description
                 , [Description("任务优先级，默认为 medium")] TodoPriority? priority
                 , [Description("任务标签")] string? tags
                )
@@ -150,14 +116,16 @@ namespace ACL.business.mcp.local
                 Description = description,
                 Priority = priority ?? TodoPriority.medium,
                 Tags = tags ?? string.Empty,
+                FlowId = flowId,
+                NodeId = nodeId
             });
 
             return todos;
         }
 
 
-        [McpTool, Description("列出TODO任务，支持按状态、标签和优先级筛选")]
-        public static TodoItem[] TodoList(
+        [McpTool, Description("[流程相关TODO工具]:列出TODO任务，支持按状态、标签和优先级筛选")]
+        public static TodoItem[] FlowTodoList(
             [Description("任务状态")] TodoStatus? status,
             [Description("任务标签")] string? tag,
             [Description("任务优先级")] TodoPriority? priority)
@@ -193,14 +161,14 @@ namespace ACL.business.mcp.local
         }
 
 
-        [McpTool, Description("获取单个TODO任务的详细信息,需要传入 `id`")]
-        public static TodoItem? GetTodo([Required][Description("任务ID")] string id)
+        [McpTool, Description("[流程相关TODO工具]:获取单个TODO任务的详细信息,需要传入 `id`")]
+        public static TodoItem? GetFlowTodo([Required][Description("任务ID")] string id)
         {
             return TodoStore.Instance.Get(id);
         }
 
-        [McpTool, Description("根据任务ID更新任务信息")]
-        public static TodoItem? UpdateTodo(
+        [McpTool, Description("[流程相关TODO工具]:根据任务ID更新任务信息")]
+        public static TodoItem? UpdateFlowTodo(
             [Required][Description("任务ID")] string id,
             [Description("任务状态")] TodoStatus? status,
             [Description("任务标题")] string? title,
@@ -218,14 +186,14 @@ namespace ACL.business.mcp.local
             return TodoStore.Instance.UpdateTodo(existing);
         }
 
-        [McpTool, Description("删除TODO任务,需要传入 `id`")]
-        public static bool DeleteTodo([Required][Description("任务ID")] string id)
+        [McpTool, Description("[流程相关TODO工具]:删除TODO任务,需要传入 `id`")]
+        public static bool DeleteFlowTodo([Required][Description("任务ID")] string id)
         {
             return TodoStore.Instance.DeleteTodo(id);
         }
 
-        [McpTool, Description("标记TODO任务为已完成,任务id必须输入,需要传入 `id`")]
-        public static TodoItem? MarkTodoComplete([Required][Description("任务ID")] string id)
+        [McpTool, Description("[流程相关TODO工具]:标记TODO任务为已完成,任务id必须输入,需要传入 `id`")]
+        public static TodoItem? MarkFlowTodoComplete([Required][Description("任务ID")] string id)
         {
             if (string.IsNullOrEmpty(id))
             {
@@ -247,8 +215,8 @@ namespace ACL.business.mcp.local
             return TodoStore.Instance.UpdateTodo(existing);
         }
 
-        [McpTool, Description("标记TODO任务为进行中,任务id必须输入,需要传入 `id`")]
-        public static TodoItem? MarkTodoInProgress([Required][Description("任务ID")] string id)
+        [McpTool, Description("[流程相关TODO工具]:标记TODO任务为进行中,任务id必须输入,需要传入 `id`")]
+        public static TodoItem? MarkFlowTodoInProgress([Required][Description("任务ID")] string id)
         {
             if (string.IsNullOrEmpty(id))
             {
@@ -270,13 +238,12 @@ namespace ACL.business.mcp.local
             return TodoStore.Instance.UpdateTodo(existing);
         }
 
-        [McpTool, Description("搜索TODO任务")]
-        public static TodoItem[] TodoSearch(
+        [McpTool, Description("[流程相关TODO工具]:搜索TODO任务")]
+        public static TodoItem[] FlowTodoSearch(
            [Required][Description("搜索关键词")] string keyword,
                 [Description("任务状态")] TodoStatus? status
             )
         {
-            if (string.IsNullOrEmpty(keyword)) return TodoStore.Instance.Gets(); 
             var key = keyword.ToLower();
             var qry = from t in TodoStore.Instance.Gets()
                       where t.Title.ToLower().Contains(key) || (t.Description != null && t.Description.ToLower().Contains(key))
@@ -302,8 +269,8 @@ namespace ACL.business.mcp.local
             return qry.ToArray();
         }
 
-        [McpTool, Description("获取TODO统计信息")]
-        public object TodoStats()
+        [McpTool, Description("[流程相关TODO工具]:获取TODO统计信息")]
+        public object FlowTodoStats()
         {
             var todos = TodoStore.Instance.Gets();
             var stats = new
@@ -325,6 +292,57 @@ namespace ACL.business.mcp.local
 
             return stats;
         }
+
+        [McpTool, Description("[流程相关TODO工具]:获取指定流程的所有TODO任务必须传入`flowId`")]
+        public static TodoItem[] GetFlowTodosByFlowId([Required][Description("关联的流程ID")] string flowId)
+        {
+            return FlowTodoStore.Instance.GetTodoItemsByFlow(flowId);
+        }
+
+        [McpTool, Description("[流程相关TODO工具]:获取指定流程节点的所有TODO任务列表，包含详细状态，必须传入`flowId`,`nodeId`")]
+        public static TodoItem[] GetFlowTodosByFlowNode(
+           [Required][Description("关联的流程ID")] string flowId
+            , [Required][Description("关联的流程节点ID")] string nodeId)
+        {
+            return FlowTodoStore.Instance.GetTodoItemsByFlowNode(flowId, nodeId);
+        }
+
+        [McpTool, Description("[流程相关TODO工具]:将任务关联到流程节点，必须传入`id`,`flowId`,`nodeId`")]
+        public static TodoItem? FlowTodoLinkToNode(
+             [Required][Description("任务id")] string id
+            , [Required][Description("关联的流程ID")] string flowId
+            , [Required][Description("关联的流程节点ID")] string nodeId)
+        {
+
+            var todo = TodoStore.Instance.Get(id);
+            if (todo == null) return null;
+
+            todo.FlowId = flowId;
+            todo.NodeId = nodeId;
+            return TodoStore.Instance.UpdateTodo(todo);
+        }
+
+
+        [McpTool, Description("[流程相关TODO工具]:获取流程中未完成的任务数，必须传入`flowId`")]
+        public static int GetPendingFlowTodoCountByFlowId([Required][Description("关联的流程ID")] string flowId)
+        {
+            var items = FlowTodoStore.Instance.GetTodoItemsByFlow(flowId);
+            items = items.Where(x => x.Status == TodoStatus.pending).ToArray();
+            return items.Length;
+        }
+
+
+        [McpTool, Description("[流程相关TODO工具]:根据流程节点id获取流程中未完成的任务数，必须传入`flowId`,`nodeId`")]
+        public static int GetPendinggFlowTodoCountByFlowNode(
+            [Required][Description("关联的流程ID")] string flowId,
+             [Required][Description("关联的流程节点ID")] string nodeId)
+        {
+            var items = FlowTodoStore.Instance.GetTodoItemsByFlow(flowId);
+            items = items.Where(x => x.NodeId != null && x.NodeId == nodeId && x.Status == TodoStatus.pending).ToArray();
+            return items.Length;
+        }
+
+
 
     }
 }

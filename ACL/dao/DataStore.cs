@@ -33,6 +33,11 @@ namespace ACL.dao
             return Fill<SessionItem>(t => t.SessionId == id);
         }
 
+        public int DeleteSessionItemsBySessionId(long id)
+        {
+            return Delete<SessionItem>(t => t.SessionId == id);
+        }
+
         public AgentBody? GetAgent(long id)
         {
             var datas = Fill<AgentInfo>(t => t.Id == id);

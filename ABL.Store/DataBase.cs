@@ -188,7 +188,6 @@ namespace ABL.Store
             map.Fields.ForEach(d => reverseMap.Add(d.PropertyName, d.Name));
             var sql = map.ToSelect();
 
-            var commandText = map.ToSelect();
             var whereBuilder = new StringBuilder();
             var parameters = new List<DbParameter>();
             VisitWhereExpr(where.Body, whereBuilder, reverseMap, parameters);
@@ -196,6 +195,34 @@ namespace ABL.Store
 
             var datas = Fill<T>(sql, false, CommandType.Text, parameters.ToArray());
             return datas == null || datas.Count == 0 ? default : datas[0];
+        }
+
+        public int Delete<T>(Expression<Func<T, bool>> where) where T : AbstractData, new()
+        {
+            var map = MapCollector.Get(typeof(T));
+            var reverseMap = new Dictionary<string, string>();
+            map.Fields.ForEach(d => reverseMap.Add(d.PropertyName, d.Name));
+
+            var commandText = map.ToDelete();
+            var whereBuilder = new StringBuilder();
+            var parameters = new List<DbParameter>();
+            VisitWhereExpr(where.Body, whereBuilder, reverseMap, parameters);
+            if (whereBuilder.Length > 0) commandText = $"{commandText} where {whereBuilder}";
+
+            return ExecuteNonQuery(commandText, CommandType.Text, parameters.ToArray());
+        }
+
+
+        public int Delete<T>(string where, DbParameter[] parameters) where T : AbstractData, new()
+        {
+            var map = MapCollector.Get(typeof(T));
+            var reverseMap = new Dictionary<string, string>();
+            map.Fields.ForEach(d => reverseMap.Add(d.Name, d.PropertyName));
+
+            var commandText = map.ToDelete();
+            if (!string.IsNullOrEmpty(where)) commandText += $" where {where}";
+
+            return ExecuteNonQuery(commandText, CommandType.Text, parameters);
         }
 
         public List<T> List<T>(string? where = null, DbParameter[]? parameters = null) where T : AbstractData, new()

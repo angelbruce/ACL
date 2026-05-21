@@ -1,4 +1,5 @@
 ﻿using ACL.business;
+using ACL.business.session;
 using ACL.dao;
 using McpOrchestrator;
 using System;
@@ -29,6 +30,7 @@ namespace ACL.uc
             this.Load += SessionDataList_Load;
         }
 
+
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public RichTextBox Content { get; set; }
@@ -49,6 +51,7 @@ namespace ACL.uc
 
             LoadSessions();
             Context.Instance.AgentChanged += OnAgentChanged;
+            Instance<PostOffice>.Data.OnMessageReceived += OnMessageReceived;
         }
 
         private void LoadSessions()
@@ -139,6 +142,7 @@ namespace ACL.uc
         private void btnSend_Click(object sender, EventArgs e)
         {
             WriteSend(txtAsk.Text);
+            Instance<PostOffice>.Data?.Post(business.session.Message.AIWorking);
             _ = Context.Instance.Agent.Chat(txtAsk.Text);
             txtAsk.Text = string.Empty;
         }
@@ -248,9 +252,40 @@ namespace ACL.uc
         {
             Task.Run(async () =>
             {
-                await Context.Instance.Agent?.Serve(result);
+                await Context.Instance.Agent.Serve(result);
             });
         }
 
+        private void tsbCompress_Click(object sender, EventArgs e)
+        {
+            _ = Context.Instance.Agent.Chat("<compressed />");
+            Instance<PostOffice>.Data?.Post(business.session.Message.AICompressing);
+        }
+
+
+        private void OnMessageReceived(business.session.Message message)
+        {
+            switch (message)
+            {
+                case business.session.Message.AICompressing:
+                    this.Invoke(() =>
+                    {
+                        this.tvSessions.Enabled = false;
+                        this.txtAsk.Enabled = false;
+                    });
+                    break;
+
+                case business.session.Message.AICompressed:
+                    this.Invoke(() =>
+                    {
+                        this.tvSessions.Enabled = true;
+                        this.txtAsk.Enabled = true;
+
+                        var node = tvSessions.SelectedNode;
+                        tvSessions_AfterSelect(this.tvSessions, new TreeViewEventArgs(node));
+                    });
+                    break;
+            }
+        }
     }
 }
