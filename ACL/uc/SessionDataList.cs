@@ -15,6 +15,7 @@ namespace ACL.uc
 {
     public partial class SessionDataList : UserControl
     {
+        private CancellationTokenSource cts = new CancellationTokenSource();
         private Channel<string> result;
         private DataStore store;
 
@@ -30,29 +31,56 @@ namespace ACL.uc
             this.Load += SessionDataList_Load;
         }
 
-
         [Browsable(false)]
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public RichTextBox Content { get; set; }
 
         private void SessionDataList_Load(object? sender, EventArgs e)
         {
-            Task.Run(async () =>
-            {
-                while (true)
-                {
-                    var item = await result.Reader.ReadAsync();
-                    Content.Invoke(new Action(() =>
-                    {
-                        WriteResponse(item);
-                    }));
-                }
-            });
+            Task.Run(() => StartBackgroundProcessing(cts.Token));
 
             LoadSessions();
             Context.Instance.AgentChanged += OnAgentChanged;
             Instance<PostOffice>.Data.OnMessageReceived += OnMessageReceived;
         }
+
+        private async Task StartBackgroundProcessing(CancellationToken token)
+        {
+            // 确保所有代码都使用 token 进行检查
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    // 异步读取 Channel
+                    // 传入 token 以支持优雅退出
+                    var item = await result.Reader.ReadAsync(token);
+
+                    // ！！！UI 渲染必须在 Invoke() 中进行！！！
+                    this.Invoke(() => { WriteResponse(item); });
+                }
+                catch (OperationCanceledException)
+                {
+                    // 正常退出循环
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    // 捕获异常，并安全地通知 UI 线程显示错误
+                    this.Invoke(() => { DisplayError(ex.Message); });
+                }
+            }
+        }
+
+        public void StopProcessing()
+        {
+            cts.Cancel(); // 告诉后台循环退出
+        }
+
+        private void DisplayError(string error)
+        {
+            MessageBox.Show(error, "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
 
         private void LoadSessions()
         {

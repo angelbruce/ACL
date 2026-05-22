@@ -13,7 +13,6 @@ using System.Threading.Channels;
 
 namespace ACL.flow
 {
-
     class Agent : IAgent
     {
         private CancellationTokenSource chatCts = new CancellationTokenSource(10);
@@ -126,7 +125,7 @@ namespace ACL.flow
             {
                 this.output = output;
                 this.channel = input;
-                await RunOrchestrator();
+                await RunOrchestratorAsync();
             }
             catch (Exception ex)
             {
@@ -201,7 +200,7 @@ namespace ACL.flow
         }
 
 
-        public async Task RunOrchestrator()
+        public async Task RunOrchestratorAsync()
         {
             // 获取工具列表
             GlobalLogger.Debug("[*] Fetching tools...");

@@ -86,8 +86,13 @@ namespace ACL.business.session
                         OnMessageReceived?.Invoke(data);
                         Thread.Sleep(30);
                     }
+                    catch (OperationCanceledException)
+                    {
+                        // PASSED
+                    }
                     catch (Exception e)
                     {
+                        //OTHERS output
                         GlobalLogger.Error(e.Message);
                     }
 

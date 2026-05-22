@@ -7,7 +7,9 @@ using ACL.business.session;
 using ACL.dao;
 using OpenAI.Chat;
 using System.ClientModel;
+using System.Text;
 using System.Threading.Channels;
+using System.Xml.Linq;
 
 namespace ACL.flow
 {
@@ -179,7 +181,7 @@ namespace ACL.flow
             try
             {
                 output = channel;
-                await RunOrchestrator();
+                await RunOrchestratorAsync();
             }
             catch (Exception ex)
             {
@@ -192,7 +194,7 @@ namespace ACL.flow
             return Task.FromResult(channel.Writer.TryWrite(data));
         }
 
-        public async Task RunOrchestrator()
+        public async Task RunOrchestratorAsync()
         {
             // 获取工具列表
             GlobalLogger.Debug("[*] Fetching tools...");
@@ -217,16 +219,19 @@ namespace ACL.flow
                 }
 
                 var args = new HookEventArgs { ChatClient = chatClient, Input = channel, Output = output, Messages = messages, Text = userInput };
+                //sync call
                 OnBeforeAsked?.Invoke(args);
                 if (args.Cancel) continue;
 
                 // 维护对话历史
                 messages.Add(new UserChatMessage(userInput));
 
+                chatCts = new CancellationTokenSource(60000000);
+                chatCts.Token.ThrowIfCancellationRequested();
+
                 while (true)
                 {
-                    chatCts = new CancellationTokenSource(60000000);
-                    chatCts.Token.ThrowIfCancellationRequested();
+                    var responseText = new StringBuilder();
                     try
                     {
                         // 使用流式输出（打字机效果）
@@ -264,52 +269,23 @@ namespace ACL.flow
                             {
                                 var text = update.ContentUpdate[0].Text;
                                 OnOutput.Invoke(new HookEventArgs { Input = channel, Messages = messages, Text = text });
+                                responseText.Append(text);
                                 output?.Writer.TryWrite(text);
                             }
                         }
 
                         if (fnName != null)
                         {
-                            var parameters = BinaryData.FromBytes(fnArgs.ToArray());
-
-                            messages.Add(new AssistantChatMessage(new List<ChatToolCall> { ChatToolCall.CreateFunctionToolCall(fnName, fnName, parameters) }));
-                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}正在调用中，稍后会给你最终调用结果，你先继续。"));
-                            OnFnCalling?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnParameters = parameters.ToString() });
-
-                            new Thread(async () =>
-                            {
-                                await Task.Run(async () =>
-                                {
-                                    try
-                                    {
-                                        OnAsyncFnCalling?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName });
-                                        var toolResult = await Context.Instance.CallToolAsync(fnName, parameters);
-                                        OnAsyncFnCalled?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnResult = toolResult.Content });
-                                        if (toolResult.Success)
-                                        {
-                                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}调用完成，结果为：{toolResult.Content}"));
-                                            messages.Add(new UserChatMessage($"请检查一下这个工具{fnName}的输出结果是否存在问题，若存在，请调整调用工具或参数，重新调用获取结果，如果不存在，请按照此次函数调用结果返回所需输出。"));
-                                            OnAsyncFnCalledSuccess?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnResult = toolResult.Content });
-                                        }
-                                        else
-                                        {
-                                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}调用存在问题{toolResult.Error}，需要改正/改进"));
-                                            messages.Add(new UserChatMessage($"工具{fnName}调用存在问题{toolResult.Error}，请执行改正/改进"));
-                                            OnAsyncFnCalledError?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnError = toolResult.Error });
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        GlobalLogger.Debug($"[Tool Call ERROR] {fnName} {parameters.ToString()} {ex.Message}");
-                                    }
-                                });
-                            }).Start();
-
+                            InvokeTool(fnName, fnArgs);
                             continue;
                         }
 
-                        output?.Writer.TryWrite(Environment.NewLine);
-                        Console.WriteLine();
+                        if (responseText.Length > 0)
+                        {
+                            messages.Add(new AssistantChatMessage(responseText.ToString()));
+                            output?.Writer.TryWrite(Environment.NewLine);
+                        }
+
                         break;
                     }
                     catch (OperationCanceledException ex)
@@ -318,12 +294,36 @@ namespace ACL.flow
                     }
                     catch (Exception e)
                     {
-                        if (e.Message.StartsWith("Service request failed.\\r\\nStatus: 400 (Bad Request)"))
+                        if (e.Message.Contains("Service request failed"))
                         {
-                            var modelInfo = Context.Instance.CurrentModel;
-                            var model = modelInfo.Name;
-                            var options = new OpenAI.OpenAIClientOptions() { Endpoint = new Uri(modelInfo.AccessUrl) };
-                            chatClient = new ChatClient(model, new ApiKeyCredential(modelInfo.ApiKey), options);
+                            //&& e.Message.Contains("Status: 400 (Bad Request)")
+                            if (e.Message.Contains("Status: 400 (Bad Request)"))
+                            {
+                                var modelInfo = Context.Instance.CurrentModel;
+                                var model = modelInfo.Name;
+                                var options = new OpenAI.OpenAIClientOptions() { Endpoint = new Uri(modelInfo.AccessUrl) };
+                                chatClient = new ChatClient(model, new ApiKeyCredential(modelInfo.ApiKey), options);
+                            }
+                            else if (e.Message.Contains("Status: 50"))
+                            {
+                                //从函数调用中回复
+                                for (int i = messages.Count - 1; i >= 0; i--)
+                                {
+                                    var message = messages[i];
+                                    if (message is AssistantChatMessage)
+                                    {
+                                        messages.RemoveAt(i);
+                                        i--;
+                                    }
+                                    if (message is ToolChatMessage)
+                                    {
+                                        messages.RemoveAt(i);
+                                        i--;
+                                    }
+                                }
+
+                                messages.Add("**你必须严格按照工具要求的参数格式输入必须参数。**");
+                            }
                         }
 
                         OnCompressed.Invoke(new HookEventArgs { ChatClient = chatClient, Input = channel, Output = output, Messages = messages, Error = e });
@@ -331,6 +331,55 @@ namespace ACL.flow
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 执行函数调用
+        /// </summary>
+        /// <param name="fnName"></param>
+        /// <param name="fnArgs"></param>
+        private void InvokeTool(string fnName, MemoryStream fnArgs)
+        {
+            if (fnName == null) return;
+
+            var parameters = BinaryData.FromBytes(fnArgs.ToArray());
+
+            messages.Add(new AssistantChatMessage(new List<ChatToolCall> { ChatToolCall.CreateFunctionToolCall(fnName, fnName, parameters) }));
+            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}正在调用中，稍后会给你最终调用结果，你先继续。"));
+            //sync call
+            OnFnCalling?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnParameters = parameters.ToString() });
+
+            new Thread(async () =>
+            {
+                await Task.Run(async () =>
+                {
+                    try
+                    {
+                        //sync call
+                        OnAsyncFnCalling?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName });
+                        var toolResult = await Context.Instance.CallToolAsync(fnName, parameters);
+                        //sync call
+                        OnAsyncFnCalled?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnResult = toolResult.Content });
+                        if (toolResult.Success)
+                        {
+                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}调用完成，结果为：{toolResult.Content}"));
+                            messages.Add(new UserChatMessage($"请检查一下这个工具{fnName}的输出结果是否存在问题，若存在，请调整调用工具或参数，重新调用获取结果，如果不存在，请按照此次函数调用结果返回所需输出。"));
+                            OnAsyncFnCalledSuccess?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnResult = toolResult.Content });
+                        }
+                        else
+                        {
+                            messages.Add(new ToolChatMessage(fnName, $"工具{fnName}调用存在问题{toolResult.Error}，需要改正/改进"));
+                            messages.Add(new UserChatMessage($"工具{fnName}调用存在问题{toolResult.Error}，请执行改正/改进"));
+                            //sync call
+                            OnAsyncFnCalledError?.Invoke(new HookEventArgs { Input = channel, Messages = messages, FnName = fnName, FnError = toolResult.Error });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        GlobalLogger.Debug($"[Tool Call ERROR] {fnName} {parameters.ToString()} {ex.Message}");
+                    }
+                });
+            }).Start();
         }
 
         public void Cancel()
@@ -374,7 +423,8 @@ namespace ACL.flow
         {
             chatOptions = new ChatCompletionOptions()
             {
-                AllowParallelToolCalls = false,
+                AllowParallelToolCalls = true,
+                //FrequencyPenalty = 0.5f,
             };
 
             if (MCPTools != null)

@@ -84,19 +84,19 @@ namespace ACL.business.agent
 
         public static async void OnAsyncFnCalledSuccess(HookEventArgs e)
         {
-            var channel = e.Input;
-            if (channel == null) return;
+            //var channel = e.Input;
+            //if (channel == null) return;
 
-            var token = e.Token;
-            if (token.IsCancellationRequested) return;
+            //var token = e.Token;
+            //if (token.IsCancellationRequested) return;
 
-            var fnName = e.FnName;
-            var result = e.FnResult;
+            //var fnName = e.FnName;
+            //var result = e.FnResult;
 
-            if (await channel.Writer.WaitToWriteAsync(token))
-            {
-                await channel.Writer.WriteAsync($"工具{fnName}调用完成，结果为：{result}。请检查一下这个工具{fnName}的输出结果是否存在问题，若存在，请修复。");
-            }
+            //if (await channel.Writer.WaitToWriteAsync(token))
+            //{
+            //    await channel.Writer.WriteAsync($"请检查一下工具{fnName}结果{result}是否有问题，若存在，请修复；否则，请继续。");
+            //}
         }
 
         public static async void OnAsyncFnCalledError(HookEventArgs e)
@@ -112,7 +112,7 @@ namespace ACL.business.agent
 
             if (await channel.Writer.WaitToWriteAsync(token))
             {
-                await channel.Writer.WriteAsync($"工具{fnName}调用存在问题{error}，请执行改正/改进");
+                await channel.Writer.WriteAsync($"工具{fnName}调用存在问题{error}，请立刻执行改正/改进");
             }
         }
 

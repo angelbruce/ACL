@@ -132,8 +132,22 @@ namespace ACL.business.mcp.local
     [McpServerTool]
     public class TodoTool
     {
+        [McpTool, Description("创建多个新的TODO任务")]
+        public static bool CreateMultiTodoItems(TodoItem[] items)
+        {
+            if (items == null || items.Length == 0) return false;
+
+            foreach (var item in items)
+            {
+                TodoStore.Instance.AddTodo(item);
+            }
+
+            return true;
+        }
+
         [McpTool, Description("创建一个新的TODO任务")]
-        public static TodoItem TodoCreate([Required][Description("任务标题")] string title
+        public static TodoItem CreateOneTodoItem(
+                  [Required][Description("任务标题")] string title
                 , [Description("任务描述")] string? description
                 , [Description("任务优先级，默认为 medium")] TodoPriority? priority
                 , [Description("任务标签")] string? tags
@@ -143,6 +157,7 @@ namespace ACL.business.mcp.local
             {
                 priority = TodoPriority.medium;
             }
+
             if (tags == null) tags = string.Empty;
             var todos = TodoStore.Instance.AddTodo(new TodoItem
             {
@@ -189,7 +204,19 @@ namespace ACL.business.mcp.local
                     _ => 4
                 };
             }).ThenByDescending(t => t.CreatedAt);
-            return qry.ToArray();
+            var datas = qry.ToList();
+            if (datas.Count == 0)
+            {
+                datas.Add(new TodoItem
+                {
+
+                    Id = "-1",
+                    Description = "这个是空任务，表示当前查询到的任务列表是空的。",
+                    Title = "没有查询到任务",
+                });
+            }
+
+            return datas.ToArray();
         }
 
 
@@ -276,7 +303,7 @@ namespace ACL.business.mcp.local
                 [Description("任务状态")] TodoStatus? status
             )
         {
-            if (string.IsNullOrEmpty(keyword)) return TodoStore.Instance.Gets(); 
+            if (string.IsNullOrEmpty(keyword)) return TodoStore.Instance.Gets();
             var key = keyword.ToLower();
             var qry = from t in TodoStore.Instance.Gets()
                       where t.Title.ToLower().Contains(key) || (t.Description != null && t.Description.ToLower().Contains(key))

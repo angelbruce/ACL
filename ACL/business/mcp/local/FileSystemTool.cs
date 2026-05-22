@@ -141,6 +141,10 @@ namespace ACL.business.mcp.local
             // 2. 获取所有目录
             string[] allDirectories = Directory.GetDirectories(absoluteDir, "*", SearchOption.TopDirectoryOnly);
             list.AddRange(allDirectories);
+            if (list.Count == 0)
+            {
+                list.Add(" **请注意：没有查询到任何文件与目录信息，这表示这个目录是空的** ");
+            }
 
             return list;
         }
@@ -217,7 +221,10 @@ namespace ACL.business.mcp.local
                 }
             }
 
-
+            if (list.Count == 0)
+            {
+                list.Add(" **请注意：没有查询到任何文件与目录信息，这表示这个目录是空的** ");
+            }
             return list;
         }
 
